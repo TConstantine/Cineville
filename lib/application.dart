@@ -1,5 +1,5 @@
+import 'package:cineville/presentation/screen/home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:popular_movies/presentation/screen/home_screen.dart';
 
 class CinevilleApplication extends StatelessWidget {
   @override
