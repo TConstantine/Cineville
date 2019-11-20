@@ -33,6 +33,7 @@ void main() {
 
   Future _pumpHomeScreen(WidgetTester tester) async {
     when(mockMovieRepository.getPopularMovies(any)).thenAnswer((_) async => Right(testMovies));
+    when(mockMovieRepository.getUpcomingMovies(any)).thenAnswer((_) async => Right(testMovies));
     when(mockMovieRepository.getTopRatedMovies(any)).thenAnswer((_) async => Right(testMovies));
     await tester.runAsync(() async {
       await Injector().withMovieRepository(mockMovieRepository).inject();
@@ -50,6 +51,15 @@ void main() {
         find.byWidgetPredicate((widget) =>
             widget is MoviesView &&
             widget.title == TranslatableStrings.MOST_POPULAR_MOVIES_CATEGORY),
+        findsOneWidget);
+  });
+
+  testWidgets('should display upcoming movies', (tester) async {
+    await _pumpHomeScreen(tester);
+
+    expect(
+        find.byWidgetPredicate((widget) =>
+            widget is MoviesView && widget.title == TranslatableStrings.UPCOMING_MOVIES_CATEGORY),
         findsOneWidget);
   });
 

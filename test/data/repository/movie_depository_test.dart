@@ -92,10 +92,30 @@ void main() {
     });
   }
 
+  void _whenPopularMovieCacheIsEmpty(Function body) {
+    group('when popular movie cache is empty', () {
+      setUp(() {
+        when(_mockLocalDataSource.getPopularMovies()).thenAnswer((_) async => []);
+      });
+
+      body();
+    });
+  }
+
   void _whenPopularMovieCacheIsNotEmpty(Function body) {
     group('when popular movie cache is not empty', () {
       setUp(() {
         when(_mockLocalDataSource.getPopularMovies()).thenAnswer((_) async => testMovieModels);
+      });
+
+      body();
+    });
+  }
+
+  void _whenTopRatedMovieCacheIsEmpty(Function body) {
+    group('when top rated movie cache is empty', () {
+      setUp(() {
+        when(_mockLocalDataSource.getTopRatedMovies()).thenAnswer((_) async => []);
       });
 
       body();
@@ -112,20 +132,20 @@ void main() {
     });
   }
 
-  void _whenPopularMovieCacheIsEmpty(Function body) {
-    group('when popular movie cache is empty', () {
+  void _whenUpcomingMovieCacheIsEmpty(Function body) {
+    group('when upcoming movie cache is empty', () {
       setUp(() {
-        when(_mockLocalDataSource.getPopularMovies()).thenAnswer((_) async => []);
+        when(_mockLocalDataSource.getUpcomingMovies()).thenAnswer((_) async => []);
       });
 
       body();
     });
   }
 
-  void _whenTopRatedMovieCacheIsEmpty(Function body) {
-    group('when top rated movie cache is empty', () {
+  void _whenUpcomingMovieCacheIsNotEmpty(Function body) {
+    group('when upcoming movie cache is not empty', () {
       setUp(() {
-        when(_mockLocalDataSource.getTopRatedMovies()).thenAnswer((_) async => []);
+        when(_mockLocalDataSource.getUpcomingMovies()).thenAnswer((_) async => testMovieModels);
       });
 
       body();
@@ -202,6 +222,26 @@ void main() {
     });
   }
 
+  void _whenRemoteRequestForUpcomingMoviesIsSuccessful(Function body) {
+    group('when remote request for upcoming movies is successful', () {
+      setUp(() {
+        when(_mockRemoteDataSource.getUpcomingMovies(any)).thenAnswer((_) async => testMovieModels);
+      });
+
+      body();
+    });
+  }
+
+  void _whenRemoteRequestForUpcomingMoviesIsUnsuccessful(Function body) {
+    group('when remote request for upcoming movies is unsuccessful', () {
+      setUp(() {
+        when(_mockRemoteDataSource.getUpcomingMovies(any)).thenThrow(ServerException());
+      });
+
+      body();
+    });
+  }
+
   void _whenRemoteRequestForGenresIsSuccessful(Function body) {
     group('when remote request for genres is successful', () {
       setUp(() {
@@ -222,89 +262,150 @@ void main() {
     });
   }
 
+  void _getPopularMoviesShouldStoreMoviesLocally() {
+    test('should store movies locally', () async {
+      when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
+
+      await _repository.getPopularMovies(testPage);
+
+      verify(_mockRemoteDataSource.getPopularMovies(testPage));
+      verify(_mockLocalDataSource.storePopularMovies(testMovieModels));
+    });
+  }
+
+  void _getPopularMoviesShouldStoreTheDateLocally() {
+    test('should store the date locally', () async {
+      when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
+
+      await _repository.getPopularMovies(testPage);
+
+      verify(_mockRemoteDataSource.getPopularMovies(testPage));
+      verify(_mockLocalDateSource.storeDate(any));
+    });
+  }
+
+  void _getPopularMoviesShouldReturnServerFailure() {
+    test('should return server failure', () async {
+      final Either<Failure, List<Movie>> result = await _repository.getPopularMovies(testPage);
+
+      verify(_mockRemoteDataSource.getPopularMovies(testPage));
+      expect(result, equals(Left(ServerFailure())));
+    });
+  }
+
+  void _getPopularMoviesShouldReturnNetworkFailure() {
+    test('should return network failure', () async {
+      final Either<Failure, List<Movie>> result = await _repository.getPopularMovies(testPage);
+
+      expect(result, equals(Left(NetworkFailure())));
+    });
+  }
+
+  void _getTopRatedMoviesShouldStoreMoviesLocally() {
+    test('should store movies locally', () async {
+      when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
+
+      await _repository.getTopRatedMovies(testPage);
+
+      verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
+      verify(_mockLocalDataSource.storeTopRatedMovies(testMovieModels));
+    });
+  }
+
+  void _getTopRatedMoviesShouldStoreTheDateLocally() {
+    test('should store the date locally', () async {
+      when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
+
+      await _repository.getTopRatedMovies(testPage);
+
+      verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
+      verify(_mockLocalDateSource.storeDate(any));
+    });
+  }
+
+  void _getTopRatedMoviesShouldReturnServerFailure() {
+    test('should return server failure', () async {
+      final Either<Failure, List<Movie>> result = await _repository.getTopRatedMovies(testPage);
+
+      verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
+      expect(result, equals(Left(ServerFailure())));
+    });
+  }
+
+  void _getTopRatedMoviesShouldReturnNetworkFailure() {
+    test('should return network failure', () async {
+      final Either<Failure, List<Movie>> result = await _repository.getTopRatedMovies(testPage);
+
+      expect(result, equals(Left(NetworkFailure())));
+    });
+  }
+
+  void _getUpcomingMoviesShouldStoreMoviesLocally() {
+    test('should store movies locally', () async {
+      when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
+
+      await _repository.getUpcomingMovies(testPage);
+
+      verify(_mockRemoteDataSource.getUpcomingMovies(testPage));
+      verify(_mockLocalDataSource.storeUpcomingMovies(testMovieModels));
+    });
+  }
+
+  void _getUpcomingMoviesShouldStoreTheDateLocally() {
+    test('should store the date locally', () async {
+      when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
+
+      await _repository.getUpcomingMovies(testPage);
+
+      verify(_mockRemoteDataSource.getUpcomingMovies(testPage));
+      verify(_mockLocalDateSource.storeDate(any));
+    });
+  }
+
+  void _getUpcomingMoviesShouldReturnServerFailure() {
+    test('should return server failure', () async {
+      final Either<Failure, List<Movie>> result = await _repository.getUpcomingMovies(testPage);
+
+      verify(_mockRemoteDataSource.getUpcomingMovies(testPage));
+      expect(result, equals(Left(ServerFailure())));
+    });
+  }
+
+  void _getUpcomingMoviesShouldReturnNetworkFailure() {
+    test('should return network failure', () async {
+      final Either<Failure, List<Movie>> result = await _repository.getUpcomingMovies(testPage);
+
+      expect(result, equals(Left(NetworkFailure())));
+    });
+  }
+
   group('getPopularMovies', () {
     _whenCachedDateDoesNotExist(() {
       _whenDeviceIsOnline(() {
         _whenRemoteRequestForPopularMoviesIsSuccessful(() {
-          test('should store movies locally', () async {
-            when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-            await _repository.getPopularMovies(testPage);
-
-            verify(_mockRemoteDataSource.getPopularMovies(testPage));
-            verify(_mockLocalDataSource.storePopularMovies(testMovieModels));
-          });
-
-          test('should store the date', () async {
-            when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-            await _repository.getPopularMovies(testPage);
-
-            verify(_mockRemoteDataSource.getPopularMovies(testPage));
-            verify(_mockLocalDateSource.storeDate(any));
-          });
+          _getPopularMoviesShouldStoreMoviesLocally();
+          _getPopularMoviesShouldStoreTheDateLocally();
         });
 
-        _whenRemoteRequestForPopularMoviesIsUnsuccessful(() {
-          test('should return server failure', () async {
-            final Either<Failure, List<Movie>> result =
-                await _repository.getPopularMovies(testPage);
-
-            verify(_mockRemoteDataSource.getPopularMovies(testPage));
-            expect(result, equals(Left(ServerFailure())));
-          });
-        });
+        _whenRemoteRequestForPopularMoviesIsUnsuccessful(
+            _getPopularMoviesShouldReturnServerFailure);
       });
 
-      _whenDeviceIsOffline(() {
-        test('should return network failure', () async {
-          final Either<Failure, List<Movie>> result = await _repository.getPopularMovies(testPage);
-
-          expect(result, equals(Left(NetworkFailure())));
-        });
-      });
+      _whenDeviceIsOffline(_getPopularMoviesShouldReturnNetworkFailure);
     });
 
     _whenCachedDateIsOlderThanADay(() {
       _whenDeviceIsOnline(() {
         _whenRemoteRequestForPopularMoviesIsSuccessful(() {
-          test('should store movies locally', () async {
-            when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-            await _repository.getPopularMovies(testPage);
-
-            verify(_mockRemoteDataSource.getPopularMovies(testPage));
-            verify(_mockLocalDataSource.storePopularMovies(testMovieModels));
-          });
-
-          test('should store the date', () async {
-            when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-            await _repository.getPopularMovies(testPage);
-
-            verify(_mockRemoteDataSource.getPopularMovies(testPage));
-            verify(_mockLocalDateSource.storeDate(any));
-          });
+          _getPopularMoviesShouldStoreMoviesLocally();
+          _getPopularMoviesShouldStoreTheDateLocally();
         });
 
-        _whenRemoteRequestForPopularMoviesIsUnsuccessful(() {
-          test('should return server failure', () async {
-            final Either<Failure, List<Movie>> result =
-                await _repository.getPopularMovies(testPage);
-
-            verify(_mockRemoteDataSource.getPopularMovies(testPage));
-            expect(result, equals(Left(ServerFailure())));
-          });
-        });
+        _whenRemoteRequestForPopularMoviesIsUnsuccessful(
+            _getPopularMoviesShouldReturnServerFailure);
       });
 
-      _whenDeviceIsOffline(() {
-        test('should return network failure', () async {
-          final Either<Failure, List<Movie>> result = await _repository.getPopularMovies(testPage);
-
-          expect(result, equals(Left(NetworkFailure())));
-        });
-      });
+      _whenDeviceIsOffline(_getPopularMoviesShouldReturnNetworkFailure);
     });
 
     _whenCachedDateIsLessThanADayOld(() {
@@ -324,44 +425,15 @@ void main() {
       _whenPopularMovieCacheIsEmpty(() {
         _whenDeviceIsOnline(() {
           _whenRemoteRequestForPopularMoviesIsSuccessful(() {
-            test('should store movies locally', () async {
-              when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-              await _repository.getPopularMovies(testPage);
-
-              verify(_mockRemoteDataSource.getPopularMovies(testPage));
-              verify(_mockLocalDataSource.storePopularMovies(testMovieModels));
-            });
-
-            test('should store the date', () async {
-              when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-              await _repository.getPopularMovies(testPage);
-
-              verify(_mockRemoteDataSource.getPopularMovies(testPage));
-              verify(_mockLocalDateSource.storeDate(any));
-            });
+            _getPopularMoviesShouldStoreMoviesLocally();
+            _getPopularMoviesShouldStoreTheDateLocally();
           });
 
-          _whenRemoteRequestForPopularMoviesIsUnsuccessful(() {
-            test('should return server failure', () async {
-              final Either<Failure, List<Movie>> result =
-                  await _repository.getPopularMovies(testPage);
-
-              verify(_mockRemoteDataSource.getPopularMovies(testPage));
-              expect(result, equals(Left(ServerFailure())));
-            });
-          });
+          _whenRemoteRequestForPopularMoviesIsUnsuccessful(
+              _getPopularMoviesShouldReturnServerFailure);
         });
 
-        _whenDeviceIsOffline(() {
-          test('should return network failure', () async {
-            final Either<Failure, List<Movie>> result =
-                await _repository.getPopularMovies(testPage);
-
-            expect(result, equals(Left(NetworkFailure())));
-          });
-        });
+        _whenDeviceIsOffline(_getPopularMoviesShouldReturnNetworkFailure);
       });
     });
 
@@ -397,14 +469,7 @@ void main() {
             });
           });
 
-          _whenDeviceIsOffline(() {
-            test('should return network failure', () async {
-              final Either<Failure, List<Movie>> result =
-                  await _repository.getPopularMovies(testPage);
-
-              expect(result, equals(Left(NetworkFailure())));
-            });
-          });
+          _whenDeviceIsOffline(_getPopularMoviesShouldReturnNetworkFailure);
         });
       });
     });
@@ -414,85 +479,29 @@ void main() {
     _whenCachedDateDoesNotExist(() {
       _whenDeviceIsOnline(() {
         _whenRemoteRequestForTopRatedMoviesIsSuccessful(() {
-          test('should store movies locally', () async {
-            when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-            await _repository.getTopRatedMovies(testPage);
-
-            verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-            verify(_mockLocalDataSource.storeTopRatedMovies(testMovieModels));
-          });
-
-          test('should store the date', () async {
-            when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-            await _repository.getTopRatedMovies(testPage);
-
-            verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-            verify(_mockLocalDateSource.storeDate(any));
-          });
+          _getTopRatedMoviesShouldStoreMoviesLocally();
+          _getTopRatedMoviesShouldStoreTheDateLocally();
         });
 
-        _whenRemoteRequestForTopRatedMoviesIsUnsuccessful(() {
-          test('should return server failure', () async {
-            final Either<Failure, List<Movie>> result =
-                await _repository.getTopRatedMovies(testPage);
-
-            verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-            expect(result, equals(Left(ServerFailure())));
-          });
-        });
+        _whenRemoteRequestForTopRatedMoviesIsUnsuccessful(
+            _getTopRatedMoviesShouldReturnServerFailure);
       });
 
-      _whenDeviceIsOffline(() {
-        test('should return network failure', () async {
-          final Either<Failure, List<Movie>> result = await _repository.getTopRatedMovies(testPage);
-
-          expect(result, equals(Left(NetworkFailure())));
-        });
-      });
+      _whenDeviceIsOffline(_getTopRatedMoviesShouldReturnNetworkFailure);
     });
 
     _whenCachedDateIsOlderThanADay(() {
       _whenDeviceIsOnline(() {
         _whenRemoteRequestForTopRatedMoviesIsSuccessful(() {
-          test('should store movies locally', () async {
-            when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-            await _repository.getTopRatedMovies(testPage);
-
-            verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-            verify(_mockLocalDataSource.storeTopRatedMovies(testMovieModels));
-          });
-
-          test('should store the date', () async {
-            when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-            await _repository.getTopRatedMovies(testPage);
-
-            verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-            verify(_mockLocalDateSource.storeDate(any));
-          });
+          _getTopRatedMoviesShouldStoreMoviesLocally();
+          _getTopRatedMoviesShouldStoreTheDateLocally();
         });
 
-        _whenRemoteRequestForTopRatedMoviesIsUnsuccessful(() {
-          test('should return server failure', () async {
-            final Either<Failure, List<Movie>> result =
-                await _repository.getTopRatedMovies(testPage);
-
-            verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-            expect(result, equals(Left(ServerFailure())));
-          });
-        });
+        _whenRemoteRequestForTopRatedMoviesIsUnsuccessful(
+            _getTopRatedMoviesShouldReturnServerFailure);
       });
 
-      _whenDeviceIsOffline(() {
-        test('should return network failure', () async {
-          final Either<Failure, List<Movie>> result = await _repository.getTopRatedMovies(testPage);
-
-          expect(result, equals(Left(NetworkFailure())));
-        });
-      });
+      _whenDeviceIsOffline(_getTopRatedMoviesShouldReturnNetworkFailure);
     });
 
     _whenCachedDateIsLessThanADayOld(() {
@@ -512,44 +521,15 @@ void main() {
       _whenTopRatedMovieCacheIsEmpty(() {
         _whenDeviceIsOnline(() {
           _whenRemoteRequestForTopRatedMoviesIsSuccessful(() {
-            test('should store movies locally', () async {
-              when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-              await _repository.getTopRatedMovies(testPage);
-
-              verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-              verify(_mockLocalDataSource.storeTopRatedMovies(testMovieModels));
-            });
-
-            test('should store the date', () async {
-              when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
-
-              await _repository.getTopRatedMovies(testPage);
-
-              verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-              verify(_mockLocalDateSource.storeDate(any));
-            });
+            _getTopRatedMoviesShouldStoreMoviesLocally();
+            _getTopRatedMoviesShouldStoreTheDateLocally();
           });
 
-          _whenRemoteRequestForTopRatedMoviesIsUnsuccessful(() {
-            test('should return server failure', () async {
-              final Either<Failure, List<Movie>> result =
-                  await _repository.getTopRatedMovies(testPage);
-
-              verify(_mockRemoteDataSource.getTopRatedMovies(testPage));
-              expect(result, equals(Left(ServerFailure())));
-            });
-          });
+          _whenRemoteRequestForTopRatedMoviesIsUnsuccessful(
+              _getTopRatedMoviesShouldReturnServerFailure);
         });
 
-        _whenDeviceIsOffline(() {
-          test('should return network failure', () async {
-            final Either<Failure, List<Movie>> result =
-                await _repository.getTopRatedMovies(testPage);
-
-            expect(result, equals(Left(NetworkFailure())));
-          });
-        });
+        _whenDeviceIsOffline(_getTopRatedMoviesShouldReturnNetworkFailure);
       });
     });
 
@@ -585,14 +565,104 @@ void main() {
             });
           });
 
-          _whenDeviceIsOffline(() {
-            test('should return network failure', () async {
-              final Either<Failure, List<Movie>> result =
-                  await _repository.getTopRatedMovies(testPage);
+          _whenDeviceIsOffline(_getTopRatedMoviesShouldReturnNetworkFailure);
+        });
+      });
+    });
+  });
 
-              expect(result, equals(Left(NetworkFailure())));
+  group('getUpcomingMovies', () {
+    _whenCachedDateDoesNotExist(() {
+      _whenDeviceIsOnline(() {
+        _whenRemoteRequestForUpcomingMoviesIsSuccessful(() {
+          _getUpcomingMoviesShouldStoreMoviesLocally();
+          _getUpcomingMoviesShouldStoreTheDateLocally();
+        });
+
+        _whenRemoteRequestForUpcomingMoviesIsUnsuccessful(
+            _getUpcomingMoviesShouldReturnServerFailure);
+      });
+
+      _whenDeviceIsOffline(_getUpcomingMoviesShouldReturnNetworkFailure);
+    });
+
+    _whenCachedDateIsOlderThanADay(() {
+      _whenDeviceIsOnline(() {
+        _whenRemoteRequestForUpcomingMoviesIsSuccessful(() {
+          _getUpcomingMoviesShouldStoreMoviesLocally();
+
+          _getUpcomingMoviesShouldStoreTheDateLocally();
+        });
+
+        _whenRemoteRequestForUpcomingMoviesIsUnsuccessful(
+            _getUpcomingMoviesShouldReturnServerFailure);
+      });
+
+      _whenDeviceIsOffline(_getUpcomingMoviesShouldReturnNetworkFailure);
+    });
+
+    _whenCachedDateIsLessThanADayOld(() {
+      _whenUpcomingMovieCacheIsNotEmpty(() {
+        test('should return cached movies', () async {
+          when(_mockLocalDataSource.getGenres(any)).thenAnswer((_) async => testGenreModels);
+          when(_mockMovieMapper.map(any, any)).thenReturn(testMovies);
+
+          final Either<Failure, List<Movie>> result = await _repository.getUpcomingMovies(testPage);
+
+          verifyZeroInteractions(_mockNetwork);
+          verifyZeroInteractions(_mockRemoteDataSource);
+          expect(result, equals(Right(testMovies)));
+        });
+      });
+
+      _whenUpcomingMovieCacheIsEmpty(() {
+        _whenDeviceIsOnline(() {
+          _whenRemoteRequestForUpcomingMoviesIsSuccessful(() {
+            _getUpcomingMoviesShouldStoreMoviesLocally();
+            _getUpcomingMoviesShouldStoreTheDateLocally();
+          });
+
+          _whenRemoteRequestForUpcomingMoviesIsUnsuccessful(
+              _getUpcomingMoviesShouldReturnServerFailure);
+        });
+
+        _whenDeviceIsOffline(_getUpcomingMoviesShouldReturnNetworkFailure);
+      });
+    });
+
+    _whenCachedDateIsLessThanADayOld(() {
+      _whenUpcomingMovieCacheIsNotEmpty(() {
+        _whenGenreCacheIsEmpty(() {
+          _whenDeviceIsOnline(() {
+            test('should request genres from remote data source', () async {
+              when(_mockRemoteDataSource.getMovieGenres()).thenAnswer((_) async => testGenreModels);
+
+              await _repository.getUpcomingMovies(testPage);
+
+              verify(_mockRemoteDataSource.getMovieGenres());
+            });
+
+            _whenRemoteRequestForGenresIsSuccessful(() {
+              test('should store genres locally', () async {
+                await _repository.getUpcomingMovies(testPage);
+
+                verify(_mockRemoteDataSource.getMovieGenres());
+                verify(_mockLocalDataSource.storeGenres(testGenreModels));
+              });
+            });
+
+            _whenRemoteRequestForGenresIsUnsuccessful(() {
+              test('should return server failure', () async {
+                final Either<Failure, List<Movie>> result =
+                    await _repository.getUpcomingMovies(testPage);
+
+                verify(_mockRemoteDataSource.getMovieGenres());
+                expect(result, equals(Left(ServerFailure())));
+              });
             });
           });
+
+          _whenDeviceIsOffline(_getUpcomingMoviesShouldReturnNetworkFailure);
         });
       });
     });

@@ -26,6 +26,11 @@ class MoorDatabase implements LocalDataSource {
   }
 
   @override
+  Future<List<MovieModel>> getUpcomingMovies() async {
+    return await _movieDao.getUpcomingMovies();
+  }
+
+  @override
   Future storeGenres(List<GenreModel> genreDaos) {
     return _genreDao.storeGenres(genreDaos);
   }
@@ -38,5 +43,10 @@ class MoorDatabase implements LocalDataSource {
   @override
   Future storeTopRatedMovies(List<MovieModel> movieDaos) {
     return _movieDao.storeTopRatedMovies(movieDaos);
+  }
+
+  @override
+  Future storeUpcomingMovies(List<MovieModel> movieDaos) {
+    return _movieDao.storeUpcomingMovies(movieDaos);
   }
 }

@@ -34,6 +34,11 @@ class TmdbApi implements RemoteDataSource {
     return await _getMovies(TmdbApiConstant.TOP_RATED_MOVIES_ENDPOINT, page);
   }
 
+  @override
+  Future<List<MovieModel>> getUpcomingMovies(int page) async {
+    return await _getMovies(TmdbApiConstant.UPCOMING_MOVIES_ENDPOINT, page);
+  }
+
   Future<List<MovieModel>> _getMovies(String endpoint, int page) async {
     final String url =
         '${TmdbApiConstant.BASE_URL}$endpoint?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$page';

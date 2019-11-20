@@ -5,4 +5,5 @@ abstract class RemoteDataSource {
   Future<List<GenreModel>> getMovieGenres();
   Future<List<MovieModel>> getPopularMovies(int page);
   Future<List<MovieModel>> getTopRatedMovies(int page);
+  Future<List<MovieModel>> getUpcomingMovies(int page);
 }

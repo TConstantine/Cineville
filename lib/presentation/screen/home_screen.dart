@@ -24,6 +24,14 @@ class HomeScreen extends StatelessWidget {
                 title: TranslatableStrings.MOST_POPULAR_MOVIES_CATEGORY,
               ),
             ),
+            BlocProvider(
+              builder: (_) =>
+                  injector(UntranslatableStrings.MOVIES_BLOC_WITH_GET_UPCOMING_MOVIES_USE_CASE_KEY)
+                      as MoviesBloc,
+              child: MoviesView(
+                title: TranslatableStrings.UPCOMING_MOVIES_CATEGORY,
+              ),
+            ),
             BlocProvider<MoviesBloc>(
               builder: (_) =>
                   injector(UntranslatableStrings.MOVIES_BLOC_WITH_GET_TOP_RATED_MOVIES_USE_CASE_KEY)

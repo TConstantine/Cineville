@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cineville/data/error/failure/network_failure.dart';
+import 'package:cineville/data/error/failure/server_failure.dart';
 import 'package:cineville/di/injector.dart';
 import 'package:cineville/domain/entity/movie.dart';
 import 'package:cineville/domain/repository/movie_repository.dart';
@@ -65,10 +66,31 @@ void main() {
     expect(find.byType(MovieView, skipOffstage: false), findsNWidgets(testMovies.length));
   });
 
-  testWidgets('should display an error message when movies could not be loaded', (tester) async {
+  testWidgets('should display an error message when movies fail to load', (tester) async {
     when(mockMovieRepository.getPopularMovies(any)).thenAnswer((_) async => Left(NetworkFailure()));
     await _pumpMoviesView(tester);
 
     expect(find.text(TranslatableStrings.NETWORK_FAILURE_MESSAGE), findsOneWidget);
+  });
+
+  testWidgets('should display a refresh button when movies fail to load', (tester) async {
+    when(mockMovieRepository.getPopularMovies(any)).thenAnswer((_) async => Left(ServerFailure()));
+    await _pumpMoviesView(tester);
+
+    expect(find.text(TranslatableStrings.SERVER_FAILURE_MESSAGE), findsOneWidget);
+    expect(find.byKey(Key(UntranslatableStrings.REFRESH_BUTTON_KEY)), findsOneWidget);
+  });
+
+  testWidgets('should display a list of movies when refresh button is clicked', (tester) async {
+    when(mockMovieRepository.getPopularMovies(any)).thenAnswer((_) async => Left(ServerFailure()));
+    await _pumpMoviesView(tester);
+
+    await tester.runAsync(() async {
+      when(mockMovieRepository.getPopularMovies(any)).thenAnswer((_) async => Right(testMovies));
+      await tester.tap(find.byKey(Key(UntranslatableStrings.REFRESH_BUTTON_KEY)));
+      await tester.pumpAndSettle();
+    });
+
+    expect(find.byType(MovieView, skipOffstage: false), findsNWidgets(testMovies.length));
   });
 }

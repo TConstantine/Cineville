@@ -6,6 +6,7 @@ import 'package:cineville/presentation/bloc/state/error_state.dart';
 import 'package:cineville/presentation/bloc/state/loaded_state.dart';
 import 'package:cineville/presentation/bloc/state/loading_state.dart';
 import 'package:cineville/presentation/widget/movie_view.dart';
+import 'package:cineville/resources/untranslatable_stings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -25,7 +26,7 @@ class _MoviesViewState extends State<MoviesView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    BlocProvider.of<MoviesBloc>(context).dispatch(LoadMoviesEvent(1));
+    _loadMovies();
   }
 
   @override
@@ -33,11 +34,11 @@ class _MoviesViewState extends State<MoviesView> {
     return BlocBuilder<MoviesBloc, MoviesState>(
       builder: (context, state) {
         if (state is LoadingState) {
-          return _buildLoading();
+          return _buildLoadingState();
         } else if (state is LoadedState) {
-          return _buildLoaded(state.movies);
+          return _buildLoadedState(state.movies);
         } else if (state is ErrorState) {
-          return _buildError(state.message);
+          return _buildErrorState(state.message);
         } else {
           return Container();
         }
@@ -45,7 +46,7 @@ class _MoviesViewState extends State<MoviesView> {
     );
   }
 
-  Widget _buildLoading() {
+  Widget _buildLoadingState() {
     return Container(
       height: _containerHeight,
       padding: const EdgeInsets.only(
@@ -55,47 +56,29 @@ class _MoviesViewState extends State<MoviesView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMovieCategoryTitle(),
-          Container(
-            height: _containerHeight - 45.0,
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          ),
+          _buildProgressIndicator(),
         ],
       ),
     );
   }
 
-  Widget _buildLoaded(List<Movie> movies) {
+  Widget _buildLoadedState(List<Movie> movies) {
     return Container(
       height: _containerHeight,
       padding: const EdgeInsets.only(
         left: 10.0,
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildMovieCategoryTitle(),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(
-                  movies.length,
-                  (index) => Padding(
-                    padding: EdgeInsets.only(bottom: 10.0, right: 10.0),
-                    child: MovieView(movie: movies[index]),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildMovieCategoryTitle(),
+          _buildMovieList(movies),
+        ],
       ),
     );
   }
 
-  Widget _buildError(String message) {
+  Widget _buildErrorState(String message) {
     return Container(
       padding: const EdgeInsets.only(
         left: 10.0,
@@ -105,21 +88,24 @@ class _MoviesViewState extends State<MoviesView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMovieCategoryTitle(),
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.red,
+          Row(
+            children: [
+              Expanded(
+                child: _buildErrorMessageDisplay(message),
               ),
-            ),
-            padding: const EdgeInsets.all(10.0),
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 20.0,
-              ),
-            ),
+              _buildRefreshButton(),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProgressIndicator() {
+    return Container(
+      height: _containerHeight - 45.0,
+      child: Center(
+        child: CircularProgressIndicator(),
       ),
     );
   }
@@ -135,5 +121,55 @@ class _MoviesViewState extends State<MoviesView> {
         ),
       ),
     );
+  }
+
+  Widget _buildMovieList(List<Movie> movies) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(
+          movies.length,
+          (index) => Padding(
+            padding: EdgeInsets.only(bottom: 10.0, right: 10.0),
+            child: MovieView(movie: movies[index]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorMessageDisplay(String message) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Colors.red,
+        ),
+      ),
+      padding: const EdgeInsets.all(10.0),
+      child: Text(
+        message,
+        style: TextStyle(
+          fontSize: 20.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRefreshButton() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: FloatingActionButton(
+        key: Key(UntranslatableStrings.REFRESH_BUTTON_KEY),
+        elevation: 0.0,
+        onPressed: () {
+          _loadMovies();
+        },
+        child: Icon(Icons.refresh),
+      ),
+    );
+  }
+
+  void _loadMovies() {
+    BlocProvider.of<MoviesBloc>(context).dispatch(LoadMoviesEvent(1));
   }
 }

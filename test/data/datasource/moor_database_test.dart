@@ -62,6 +62,17 @@ void main() {
     });
   });
 
+  group('getUpcomingMovies', () {
+    test('should return a list of movie daos from the database', () async {
+      when(_mockMovieDao.getUpcomingMovies()).thenAnswer((_) async => testMovieModels);
+
+      final List<MovieModel> movieModels = await _dataSource.getUpcomingMovies();
+
+      verify(_mockMovieDao.getUpcomingMovies());
+      expect(movieModels, equals(testMovieModels));
+    });
+  });
+
   group('storeGenres', () {
     test('should store genres in database', () {
       _dataSource.storeGenres(testGenreModels);
@@ -83,6 +94,14 @@ void main() {
       _dataSource.storeTopRatedMovies(testMovieModels);
 
       verify(_mockMovieDao.storeTopRatedMovies(testMovieModels));
+    });
+  });
+
+  group('storeUpcomingMovies', () {
+    test('should store upcoming movies in database', () {
+      _dataSource.storeUpcomingMovies(testMovieModels);
+
+      verify(_mockMovieDao.storeUpcomingMovies(testMovieModels));
     });
   });
 }

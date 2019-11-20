@@ -28,62 +28,60 @@ void main() {
     _bloc = MoviesBloc(_mockGetMoviesUseCase);
   });
 
+  final int testPage = 1;
+  final List<Movie> testMovies = TestMovieBuilder().buildMultiple();
+
   test('initial state should be Empty', () {
     expect(_bloc.initialState, equals(EmptyState()));
   });
 
-  group('GetPopularMovies', () {
-    final int testPage = 1;
-    final List<Movie> testMovies = TestMovieBuilder().buildMultiple();
-
-    group('when data is loaded successfully', () {
-      setUp(() {
-        when(_mockGetMoviesUseCase.execute(any)).thenAnswer((_) async => Right(testMovies));
-      });
-
-      test('should get data from the get popular movies use case', () async {
-        _bloc.dispatch(LoadMoviesEvent(testPage));
-        await untilCalled(_mockGetMoviesUseCase.execute(any));
-
-        verify(_mockGetMoviesUseCase.execute(testPage));
-      });
-
-      test('should emit [Loading, Loaded] states', () async {
-        final List<MoviesState> emittedStates = [
-          EmptyState(),
-          LoadingState(),
-          LoadedState(testMovies),
-        ];
-        expectLater(_bloc.state, emitsInOrder(emittedStates));
-
-        _bloc.dispatch(LoadMoviesEvent(testPage));
-      });
+  group('when data is loaded successfully', () {
+    setUp(() {
+      when(_mockGetMoviesUseCase.execute(any)).thenAnswer((_) async => Right(testMovies));
     });
 
-    test('should emit [Loading, Error] states when server is not responsive', () async {
-      when(_mockGetMoviesUseCase.execute(any)).thenAnswer((_) async => Left(ServerFailure()));
+    test('should get data from the get popular movies use case', () async {
+      _bloc.dispatch(LoadMoviesEvent(testPage));
+      await untilCalled(_mockGetMoviesUseCase.execute(any));
 
+      verify(_mockGetMoviesUseCase.execute(testPage));
+    });
+
+    test('should emit [Loading, Loaded] states', () async {
       final List<MoviesState> emittedStates = [
         EmptyState(),
         LoadingState(),
-        ErrorState(TranslatableStrings.SERVER_FAILURE_MESSAGE),
+        LoadedState(testMovies),
       ];
       expectLater(_bloc.state, emitsInOrder(emittedStates));
 
       _bloc.dispatch(LoadMoviesEvent(testPage));
     });
+  });
 
-    test('should emit [Loading, Error] states when there is no internet connection', () async {
-      when(_mockGetMoviesUseCase.execute(any)).thenAnswer((_) async => Left(NetworkFailure()));
+  test('should emit [Loading, Error] states when server is not responsive', () async {
+    when(_mockGetMoviesUseCase.execute(any)).thenAnswer((_) async => Left(ServerFailure()));
 
-      final List<MoviesState> emittedStates = [
-        EmptyState(),
-        LoadingState(),
-        ErrorState(TranslatableStrings.NETWORK_FAILURE_MESSAGE),
-      ];
-      expectLater(_bloc.state, emitsInOrder(emittedStates));
+    final List<MoviesState> emittedStates = [
+      EmptyState(),
+      LoadingState(),
+      ErrorState(TranslatableStrings.SERVER_FAILURE_MESSAGE),
+    ];
+    expectLater(_bloc.state, emitsInOrder(emittedStates));
 
-      _bloc.dispatch(LoadMoviesEvent(testPage));
-    });
+    _bloc.dispatch(LoadMoviesEvent(testPage));
+  });
+
+  test('should emit [Loading, Error] states when there is no internet connection', () async {
+    when(_mockGetMoviesUseCase.execute(any)).thenAnswer((_) async => Left(NetworkFailure()));
+
+    final List<MoviesState> emittedStates = [
+      EmptyState(),
+      LoadingState(),
+      ErrorState(TranslatableStrings.NETWORK_FAILURE_MESSAGE),
+    ];
+    expectLater(_bloc.state, emitsInOrder(emittedStates));
+
+    _bloc.dispatch(LoadMoviesEvent(testPage));
   });
 }

@@ -14,6 +14,8 @@ import 'package:cineville/data/repository/movie_depository.dart';
 import 'package:cineville/domain/repository/movie_repository.dart';
 import 'package:cineville/domain/usecase/get_popular_movies.dart';
 import 'package:cineville/domain/usecase/get_top_rated_movies.dart';
+import 'package:cineville/domain/usecase/get_upcoming_movies.dart';
+import 'package:cineville/domain/usecase/use_case.dart';
 import 'package:cineville/presentation/bloc/movies_bloc.dart';
 import 'package:cineville/resources/untranslatable_stings.dart';
 import 'package:data_connection_checker/data_connection_checker.dart';
@@ -34,20 +36,33 @@ class Injector {
   Future inject() async {
     // Bloc
     injector.registerFactory(
-      () => MoviesBloc(injector<GetPopularMovies>()),
+      () => MoviesBloc(
+          injector(UntranslatableStrings.GET_POPULAR_MOVIES_USE_CASE_KEY) as GetPopularMovies),
       instanceName: UntranslatableStrings.MOVIES_BLOC_WITH_GET_POPULAR_MOVIES_USE_CASE_KEY,
     );
     injector.registerFactory(
-      () => MoviesBloc(injector<GetTopRatedMovies>()),
+      () => MoviesBloc(
+          injector(UntranslatableStrings.GET_TOP_RATED_MOVIES_USE_CASE_KEY) as GetTopRatedMovies),
       instanceName: UntranslatableStrings.MOVIES_BLOC_WITH_GET_TOP_RATED_MOVIES_USE_CASE_KEY,
+    );
+    injector.registerFactory(
+      () => MoviesBloc(
+          injector(UntranslatableStrings.GET_UPCOMING_MOVIES_USE_CASE_KEY) as GetUpcomingMovies),
+      instanceName: UntranslatableStrings.MOVIES_BLOC_WITH_GET_UPCOMING_MOVIES_USE_CASE_KEY,
     );
 
     // Use Case
-    injector.registerLazySingleton(
+    injector.registerLazySingleton<UseCase>(
       () => GetPopularMovies(injector()),
+      instanceName: UntranslatableStrings.GET_POPULAR_MOVIES_USE_CASE_KEY,
     );
-    injector.registerLazySingleton(
+    injector.registerLazySingleton<UseCase>(
       () => GetTopRatedMovies(injector()),
+      instanceName: UntranslatableStrings.GET_TOP_RATED_MOVIES_USE_CASE_KEY,
+    );
+    injector.registerLazySingleton<UseCase>(
+          () => GetUpcomingMovies(injector()),
+      instanceName: UntranslatableStrings.GET_UPCOMING_MOVIES_USE_CASE_KEY,
     );
 
     // Repository

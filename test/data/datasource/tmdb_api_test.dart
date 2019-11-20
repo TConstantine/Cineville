@@ -141,4 +141,29 @@ void main() {
       });
     });
   });
+
+  group('getUpcomingMovies', () {
+    _whenHttpRequestForMoviesIsSuccessful(() {
+      test('should perform a GET request on upcoming movies endpoint', () async {
+        _dataSource.getUpcomingMovies(testPage);
+
+        verify(_mockHttpClient.get(
+            '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.UPCOMING_MOVIES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$testPage'));
+      });
+
+      test('should return movie daos', () async {
+        final List<MovieModel> movieModels = await _dataSource.getUpcomingMovies(testPage);
+
+        expect(movieModels, testMovieModels);
+      });
+    });
+
+    _whenHttpRequestIsUnsuccessful(() {
+      test('should throw a server exception', () {
+        final Function call = _dataSource.getUpcomingMovies;
+
+        expect(() => call(testPage), throwsA(TypeMatcher<ServerException>()));
+      });
+    });
+  });
 }

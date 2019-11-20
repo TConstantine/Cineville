@@ -60,6 +60,22 @@ class MovieDepository implements MovieRepository {
     );
   }
 
+  @override
+  Future<Either<Failure, List<Movie>>> getUpcomingMovies(int page) async {
+    List<MovieModel> movieModels;
+    return await _getMovies(
+      () async {
+        movieModels = await _remoteDataSource.getUpcomingMovies(page);
+        return movieModels;
+      },
+      () async {
+        movieModels = await _localDataSource.getUpcomingMovies();
+        return movieModels;
+      },
+      () => _localDataSource.storeUpcomingMovies(movieModels),
+    );
+  }
+
   Future<Either<Failure, List<Movie>>> _getMovies(
     Future<List<MovieModel>> Function() getMoviesRemotely,
     Future<List<MovieModel>> Function() getMoviesLocally,
