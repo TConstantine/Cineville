@@ -7,6 +7,10 @@ class CinevilleApplication extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: HomeScreen(),
+      theme: ThemeData(
+        primaryColor: Colors.grey.shade900,
+        backgroundColor: Colors.grey.shade200,
+      ),
     );
   }
 }

@@ -44,6 +44,12 @@ void main() {
     });
   }
 
+  testWidgets('should have a drawer', (tester) async {
+    await _pumpHomeScreen(tester);
+
+    expect(find.byTooltip('Open navigation menu'), findsOneWidget);
+  });
+
   testWidgets('should display popular movies', (tester) async {
     await _pumpHomeScreen(tester);
 

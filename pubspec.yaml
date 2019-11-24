@@ -27,4 +27,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/movie_poster_placeholder.jpg
+    - assets/images/movie_poster_placeholder.jpg
+    - assets/images/tmdb_logo.png

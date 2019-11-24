@@ -1,5 +1,6 @@
 import 'package:cineville/di/injector.dart';
 import 'package:cineville/presentation/bloc/movies_bloc.dart';
+import 'package:cineville/presentation/widget/drawer_view.dart';
 import 'package:cineville/presentation/widget/movies_view.dart';
 import 'package:cineville/resources/translatable_strings.dart';
 import 'package:cineville/resources/untranslatable_stings.dart';
@@ -11,8 +12,10 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Cineville'),
+        title: Text(TranslatableStrings.APP_NAME),
       ),
+      backgroundColor: Theme.of(context).backgroundColor,
+      drawer: DrawerView(),
       body: SingleChildScrollView(
         child: Column(
           children: [
