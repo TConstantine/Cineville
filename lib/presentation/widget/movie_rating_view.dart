@@ -1,3 +1,4 @@
+import 'package:division/division.dart';
 import 'package:flutter/material.dart';
 
 class MovieRatingView extends StatelessWidget {
@@ -7,24 +8,19 @@ class MovieRatingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.black,
-        ),
-        color: Colors.white70,
-        shape: BoxShape.circle,
-      ),
-      height: 40.0,
-      width: 40.0,
-      child: Center(
-        child: Text(
-          rating,
-          style: TextStyle(
-            fontSize: 16.0,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+    return Parent(
+      style: ParentStyle()
+        ..alignmentContent.center()
+        ..background.color(Colors.teal.shade300)
+        ..circle()
+        ..height(40.0)
+        ..width(40.0),
+      child: Txt(
+        rating,
+        style: TxtStyle()
+          ..bold()
+          ..fontSize(16.0)
+          ..textColor(Colors.white),
       ),
     );
   }

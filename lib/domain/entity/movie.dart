@@ -9,7 +9,7 @@ class Movie extends Equatable {
   final String rating;
   final String posterUrl;
   final String backdropUrl;
-  final String releaseDate;
+  final String releaseYear;
   final String language;
   final double popularity;
 
@@ -21,7 +21,7 @@ class Movie extends Equatable {
     @required this.rating,
     @required this.posterUrl,
     @required this.backdropUrl,
-    @required this.releaseDate,
+    @required this.releaseYear,
     @required this.language,
     @required this.popularity,
   });
@@ -36,7 +36,7 @@ class Movie extends Equatable {
       rating,
       posterUrl,
       backdropUrl,
-      releaseDate,
+      releaseYear,
       language,
       popularity,
     ];

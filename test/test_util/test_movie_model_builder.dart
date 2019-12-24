@@ -8,9 +8,13 @@ class TestMovieModelBuilder {
   double _rating = 1.0;
   String _posterUrl = '/poster.jpg';
   String _backdropUrl = '/backdrop.jpg';
-  String _releaseDate = '01/01/2000';
+  String _releaseDate = '2000-01-01';
   String _languageCode = 'en';
   double _popularity = 1.0;
+  List<int> _movieIds = [];
+  List<double> _multiplePopularity = [];
+  List<double> _ratings = [];
+  List<String> _releaseDates = [];
 
   TestMovieModelBuilder withGenreIds(List<int> genreIds) {
     _genreIds = genreIds;
@@ -19,6 +23,26 @@ class TestMovieModelBuilder {
 
   TestMovieModelBuilder withLanguageCode(String languageCode) {
     _languageCode = languageCode;
+    return this;
+  }
+
+  TestMovieModelBuilder withMovieIds(List<int> movieIds) {
+    _movieIds = movieIds;
+    return this;
+  }
+
+  TestMovieModelBuilder withPopularity(List<double> popularity) {
+    _multiplePopularity = popularity;
+    return this;
+  }
+
+  TestMovieModelBuilder withRatings(List<double> ratings) {
+    _ratings = ratings;
+    return this;
+  }
+
+  TestMovieModelBuilder withReleaseDates(List<String> releaseDates) {
+    _releaseDates = releaseDates;
     return this;
   }
 
@@ -38,15 +62,34 @@ class TestMovieModelBuilder {
   }
 
   List<MovieModel> buildMultiple() {
-    return [build(), build(), build()];
+    return List.generate(3, (index) {
+      if (_movieIds.isNotEmpty) {
+        _id = _movieIds[index];
+      }
+      if (_multiplePopularity.isNotEmpty) {
+        _popularity = _multiplePopularity[index];
+      }
+      if (_ratings.isNotEmpty) {
+        _rating = _ratings[index];
+      }
+      if (_releaseDates.isNotEmpty) {
+        _releaseDate = _releaseDates[index];
+      }
+      return build();
+    });
   }
 
-  Map<String, dynamic> buildJson({int rating, int popularity}) {
+  Map<String, dynamic> buildJson({
+    int rating,
+    int popularity,
+    String posterUrl = '',
+    String backdropUrl = '',
+  }) {
     return {
       'popularity': popularity == null ? _popularity : popularity,
-      'poster_path': _posterUrl,
+      'poster_path': posterUrl == null ? '' : _posterUrl,
       'id': _id,
-      'backdrop_path': _backdropUrl,
+      'backdrop_path': backdropUrl == null ? '' : _backdropUrl,
       'original_language': _languageCode,
       'genre_ids': _genreIds,
       'title': _title,

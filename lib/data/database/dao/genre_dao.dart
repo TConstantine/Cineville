@@ -11,7 +11,7 @@ class GenreDao extends DatabaseAccessor<Database> with _$GenreDaoMixin {
 
   GenreDao(this.database) : super(database);
 
-  Future<List<GenreModel>> getGenres(List<int> genreIds) {
+  Future<List<GenreModel>> getMovieGenres(List<int> genreIds) {
     final String whereClause = genreIds.toString().replaceAll('[', '(').replaceAll(']', ')');
     return customSelectQuery(
       'SELECT * FROM genre_entries WHERE id IN $whereClause ORDER BY name',
@@ -22,7 +22,7 @@ class GenreDao extends DatabaseAccessor<Database> with _$GenreDaoMixin {
         .get();
   }
 
-  Future storeGenres(List<GenreModel> genreModels) {
+  Future storeMovieGenres(List<GenreModel> genreModels) {
     return into(genreEntries).insertAll(
       genreModels.map((genreModel) {
         return GenreEntry(id: genreModel.id, name: genreModel.name);

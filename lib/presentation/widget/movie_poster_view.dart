@@ -1,5 +1,6 @@
-import 'package:cineville/presentation/widget/shadow_view.dart';
-import 'package:cineville/resources/untranslatable_stings.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cineville/resources/asset_path.dart';
+import 'package:division/division.dart';
 import 'package:flutter/material.dart';
 
 class MoviePosterView extends StatelessWidget {
@@ -9,15 +10,12 @@ class MoviePosterView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShadowView(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: FadeInImage.assetNetwork(
-          image: posterUrl,
-          imageScale: 1.5,
-          placeholder: UntranslatableStrings.MOVIE_POSTER_PLACEHOLDER_PATH,
-          placeholderScale: 1.5,
-        ),
+    return Parent(
+      style: ParentStyle()..width(92.0),
+      child: CachedNetworkImage(
+        errorWidget: (_, __, ___) => Image.asset(AssetPath.MISSING_MOVIE_POSTER_PLACEHOLDER),
+        imageUrl: posterUrl,
+        placeholder: (_, __) => Image.asset(AssetPath.LOADING_MOVIE_POSTER_PLACEHOLDER),
       ),
     );
   }

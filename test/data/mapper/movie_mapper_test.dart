@@ -10,67 +10,65 @@ import '../../test_util/test_genre_model_builder.dart';
 import '../../test_util/test_movie_model_builder.dart';
 
 void main() {
-  MovieMapper _mapper;
+  MovieMapper mapper;
 
   setUp(() {
-    _mapper = MovieMapper();
+    mapper = MovieMapper();
   });
 
-  group('map', () {
-    final List<MovieModel> testMovieModels = [
-      TestMovieModelBuilder().withGenreIds([28, 12, 16]).build(),
-      TestMovieModelBuilder().build(),
-      TestMovieModelBuilder().withLanguageCode('Invalid Language Code').build(),
-    ];
-    final List<GenreModel> testGenreModels = [
-      TestGenreModelBuilder().withId(28).withName('Action').build(),
-      TestGenreModelBuilder().withId(12).withName('Adventure').build(),
-      TestGenreModelBuilder().withId(16).withName('Animation').build(),
-    ];
+  final List<MovieModel> testMovieModels = [
+    TestMovieModelBuilder().withGenreIds([28, 12, 16]).build(),
+    TestMovieModelBuilder().build(),
+    TestMovieModelBuilder().withLanguageCode('Invalid Language Code').build(),
+  ];
+  final MovieModel testMovieModel = testMovieModels.first;
+  final List<GenreModel> testGenreModels = [
+    TestGenreModelBuilder().withId(28).withName('Action').build(),
+    TestGenreModelBuilder().withId(12).withName('Adventure').build(),
+    TestGenreModelBuilder().withId(16).withName('Animation').build(),
+  ];
 
-    test('should map genre ids to genres', () {
-      final List<Movie> movies = _mapper.map(testMovieModels, testGenreModels);
+  test('should map genre ids to genres', () {
+    final List<Movie> movies = mapper.map(testMovieModels, testGenreModels);
 
-      expect(movies.first.genres, ['Action', 'Adventure', 'Animation']);
-    });
+    expect(movies.first.genres, ['Action', 'Adventure', 'Animation']);
+  });
 
-    test('should convert rating from double to string', () {
-      final List<Movie> movies = _mapper.map(testMovieModels, testGenreModels);
+  test('should convert rating from double to string', () {
+    final List<Movie> movies = mapper.map(testMovieModels, testGenreModels);
 
-      expect(movies.first.rating is String, true);
-    });
+    expect(movies.first.rating is String, true);
+  });
 
-    test('should map poster url to a https://www.example.com/image.jpg format', () {
-      final List<Movie> movies = _mapper.map(testMovieModels, testGenreModels);
+  test('should map poster url to a https://www.example.com/image.jpg format', () {
+    final List<Movie> movies = mapper.map(testMovieModels, testGenreModels);
 
-      expect(movies.first.posterUrl,
-          '${TmdbApiConstant.BASE_IMAGE_URL}${TmdbApiConstant.POSTER_SIZE}${testMovieModels.first.posterUrl}');
-    });
+    expect(movies.first.posterUrl,
+        '${TmdbApiConstant.BASE_IMAGE_URL}${TmdbApiConstant.POSTER_SIZE}${testMovieModel.posterUrl}');
+  });
 
-    test('should map backdrop url to a https://www.example.com/image.jpg format', () {
-      final List<Movie> movies = _mapper.map(testMovieModels, testGenreModels);
+  test('should map backdrop url to a https://www.example.com/image.jpg format', () {
+    final List<Movie> movies = mapper.map(testMovieModels, testGenreModels);
 
-      expect(movies.first.backdropUrl,
-          '${TmdbApiConstant.BASE_IMAGE_URL}${TmdbApiConstant.BACKDROP_SIZE}${testMovieModels.first.backdropUrl}');
-    });
+    expect(movies.first.backdropUrl,
+        '${TmdbApiConstant.BASE_IMAGE_URL}${TmdbApiConstant.BACKDROP_SIZE}${testMovieModel.backdropUrl}');
+  });
 
-    test('should map YYYY-MM-DD date format to DD/MM/YYYY', () {
-      final List<Movie> movies = _mapper.map(testMovieModels, testGenreModels);
+  test('should map YYYY-MM-DD date format to (YYYY)', () {
+    final List<Movie> movies = mapper.map(testMovieModels, testGenreModels);
 
-      expect(RegExp(r'\d{2}/\d{2}/\d{4}').hasMatch(movies.first.releaseDate), true);
-    });
+    expect(movies.first.releaseYear, '(${testMovieModel.releaseDate.substring(0, 4)})');
+  });
 
-    test('should map language code to language name', () {
-      final List<Movie> movies = _mapper.map(testMovieModels, testGenreModels);
+  test('should map language code to language name', () {
+    final List<Movie> movies = mapper.map(testMovieModels, testGenreModels);
 
-      expect(movies.first.language,
-          LanguageLocale.languageMap[testMovieModels.first.languageCode]['name']);
-    });
+    expect(movies.first.language, LanguageLocale.languageMap[testMovieModel.languageCode]['name']);
+  });
 
-    test('should not map language code to a language name when language code is invalid', () {
-      final List<Movie> movies = _mapper.map(testMovieModels, testGenreModels);
+  test('should not map language code to a language name when language code is invalid', () {
+    final List<Movie> movies = mapper.map(testMovieModels, testGenreModels);
 
-      expect(movies.last.language, LanguageLocale.NO_LANGUAGE);
-    });
+    expect(movies.last.language, LanguageLocale.NO_LANGUAGE);
   });
 }

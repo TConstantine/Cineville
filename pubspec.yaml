@@ -8,24 +8,36 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  cached_network_image: ^2.0.0-rc
   dartz: ^0.8.7
   data_connection_checker: ^0.3.4
+  division: ^0.8.7+2
   equatable: ^0.6.0
-  http: ^0.12.0+2
   flutter_bloc: ^0.21.0
+  flutter_rating_bar: ^3.0.0+1
   get_it: ^3.0.3
+  http: ^0.12.0+2
   moor_flutter: ^2.0.0
-  shared_preferences: ^0.5.4
+  shared_preferences: ^0.5.6
+  youtube_player_flutter: ^6.0.3+2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   build_runner: ^1.7.1
   mockito: ^4.1.1
+  moor_ffi: ^0.3.0
   moor_generator: ^2.0.0
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/movie_poster_placeholder.jpg
+    - assets/images/loading_actor_profile_placeholder.jpg
+    - assets/images/loading_movie_backdrop_placeholder.jpg
+    - assets/images/loading_movie_poster_placeholder.jpg
+    - assets/images/missing_actor_profile_placeholder.jpg
+    - assets/images/missing_movie_backdrop_placeholder.jpg
+    - assets/images/missing_movie_poster_placeholder.jpg
     - assets/images/tmdb_logo.png
+    - assets/images/upcoming_category_icon.png
+    - assets/images/watched_category_icon.png

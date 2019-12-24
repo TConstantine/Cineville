@@ -21,7 +21,7 @@ class TestMovieBuilder {
       rating: _rating,
       posterUrl: _posterUrl,
       backdropUrl: _backdropUrl,
-      releaseDate: _releaseDate,
+      releaseYear: _releaseDate,
       language: _language,
       popularity: _popularity,
     );

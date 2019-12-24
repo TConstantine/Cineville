@@ -9,27 +9,27 @@ import 'package:mockito/mockito.dart';
 
 import '../../test_util/test_movie_builder.dart';
 
-class MockMovieRepository extends Mock implements MovieRepository {}
+class MockRepository extends Mock implements MovieRepository {}
 
 void main() {
-  MockMovieRepository _mockMovieRepository;
-  UseCase _useCase;
+  MockRepository mockRepository;
+  UseCase<Movie> useCase;
 
   setUp(() {
-    _mockMovieRepository = MockMovieRepository();
-    _useCase = GetUpcomingMovies(_mockMovieRepository);
+    mockRepository = MockRepository();
+    useCase = GetUpcomingMovies(mockRepository);
   });
 
   final List<Movie> testMovies = TestMovieBuilder().buildMultiple();
   final int testPage = 1;
 
-  test('should retrieve upcoming movies from the repository', () async {
-    when(_mockMovieRepository.getUpcomingMovies(any)).thenAnswer((_) async => Right(testMovies));
+  test('should retrieve upcoming movies from the movie repository', () async {
+    when(mockRepository.getUpcomingMovies(any)).thenAnswer((_) async => Right(testMovies));
 
-    final Either<Failure, List<Movie>> movies = await _useCase.execute(testPage);
+    final Either<Failure, List<Movie>> result = await useCase.execute(testPage);
 
-    expect(movies, Right(testMovies));
-    verify(_mockMovieRepository.getUpcomingMovies(testPage));
-    verifyNoMoreInteractions(_mockMovieRepository);
+    expect(result, Right(testMovies));
+    verify(mockRepository.getUpcomingMovies(testPage));
+    verifyNoMoreInteractions(mockRepository);
   });
 }

@@ -1,6 +1,6 @@
-import 'package:cineville/presentation/bloc/movies_state.dart';
+import 'package:cineville/presentation/bloc/bloc_state.dart';
 
-class ErrorState extends MoviesState {
+class ErrorState extends BlocState {
   final String message;
 
   ErrorState(this.message);

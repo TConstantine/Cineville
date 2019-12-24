@@ -1,11 +1,10 @@
-import 'package:cineville/domain/entity/movie.dart';
-import 'package:cineville/presentation/bloc/movies_state.dart';
+import 'package:cineville/presentation/bloc/bloc_state.dart';
 
-class LoadedState extends MoviesState {
-  final List<Movie> movies;
+class LoadedState<E> extends BlocState {
+  final List<E> entities;
 
-  LoadedState(this.movies);
+  LoadedState(this.entities);
 
   @override
-  List<Object> get props => [movies];
+  List<Object> get props => [entities];
 }

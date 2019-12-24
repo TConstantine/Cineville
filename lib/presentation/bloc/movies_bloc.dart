@@ -1,12 +1,16 @@
 import 'package:bloc/bloc.dart';
 import 'package:cineville/data/error/failure/network_failure.dart';
+import 'package:cineville/data/error/failure/no_data_failure.dart';
 import 'package:cineville/data/error/failure/server_failure.dart';
 import 'package:cineville/domain/entity/movie.dart';
 import 'package:cineville/domain/error/failure/failure.dart';
 import 'package:cineville/domain/usecase/use_case.dart';
-import 'package:cineville/presentation/bloc/event/load_movies_event.dart';
-import 'package:cineville/presentation/bloc/movies_event.dart';
-import 'package:cineville/presentation/bloc/movies_state.dart';
+import 'package:cineville/presentation/bloc/bloc_event.dart';
+import 'package:cineville/presentation/bloc/bloc_state.dart';
+import 'package:cineville/presentation/bloc/event/load_popular_movies_event.dart';
+import 'package:cineville/presentation/bloc/event/load_similar_movies_event.dart';
+import 'package:cineville/presentation/bloc/event/load_top_rated_movies_event.dart';
+import 'package:cineville/presentation/bloc/event/load_upcoming_movies_event.dart';
 import 'package:cineville/presentation/bloc/state/empty_state.dart';
 import 'package:cineville/presentation/bloc/state/error_state.dart';
 import 'package:cineville/presentation/bloc/state/loaded_state.dart';
@@ -14,25 +18,39 @@ import 'package:cineville/presentation/bloc/state/loading_state.dart';
 import 'package:cineville/resources/translatable_strings.dart';
 import 'package:dartz/dartz.dart';
 
-class MoviesBloc extends Bloc<MoviesEvent, MoviesState> {
-  final UseCase _getMoviesUseCase;
+class MoviesBloc extends Bloc<BlocEvent, BlocState> {
+  final UseCase<Movie> getPopularMovies;
+  final UseCase<Movie> getUpcomingMovies;
+  final UseCase<Movie> getTopRatedMovies;
+  final UseCase<Movie> getSimilarMovies;
 
-  MoviesBloc(this._getMoviesUseCase);
+  MoviesBloc(
+    this.getPopularMovies,
+    this.getUpcomingMovies,
+    this.getTopRatedMovies,
+    this.getSimilarMovies,
+  );
 
   @override
-  MoviesState get initialState => EmptyState();
+  BlocState get initialState => EmptyState();
 
   @override
-  Stream<MoviesState> mapEventToState(MoviesEvent event) async* {
-    if (event is LoadMoviesEvent) {
-      yield LoadingState();
-      final Either<Failure, List<Movie>> useCaseResult =
-          await _getMoviesUseCase.execute(event.page);
-      yield useCaseResult.fold(
-        (failure) => ErrorState(_mapFailureToMessage(failure)),
-        (movies) => LoadedState(movies),
-      );
+  Stream<BlocState> mapEventToState(BlocEvent event) async* {
+    yield LoadingState();
+    Either<Failure, List<Movie>> useCaseResult;
+    if (event is LoadPopularMoviesEvent) {
+      useCaseResult = await getPopularMovies.execute(event.page);
+    } else if (event is LoadUpcomingMoviesEvent) {
+      useCaseResult = await getUpcomingMovies.execute(event.page);
+    } else if (event is LoadTopRatedMoviesEvent) {
+      useCaseResult = await getTopRatedMovies.execute(event.page);
+    } else if (event is LoadSimilarMoviesEvent) {
+      useCaseResult = await getSimilarMovies.execute(event.movieId);
     }
+    yield useCaseResult.fold(
+      (failure) => ErrorState(_mapFailureToMessage(failure)),
+      (entities) => LoadedState<Movie>(entities),
+    );
   }
 
   String _mapFailureToMessage(Failure failure) {
@@ -41,6 +59,8 @@ class MoviesBloc extends Bloc<MoviesEvent, MoviesState> {
         return TranslatableStrings.SERVER_FAILURE_MESSAGE;
       case NetworkFailure:
         return TranslatableStrings.NETWORK_FAILURE_MESSAGE;
+      case NoDataFailure:
+        return TranslatableStrings.NO_DATA_FAILURE_MESSAGE;
       default:
         return TranslatableStrings.UNEXPECTED_FAILURE_MESSAGE;
     }

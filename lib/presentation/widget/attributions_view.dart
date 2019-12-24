@@ -1,5 +1,6 @@
+import 'package:cineville/resources/asset_path.dart';
 import 'package:cineville/resources/translatable_strings.dart';
-import 'package:cineville/resources/untranslatable_stings.dart';
+import 'package:division/division.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
@@ -20,33 +21,25 @@ class AttributionsView extends StatelessWidget {
       content: SingleChildScrollView(
         child: ListBody(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(
-                bottom: 16.0,
-              ),
-              child: Image.asset(UntranslatableStrings.TMDB_LOGO_PATH),
+            Parent(
+              style: ParentStyle()..padding(bottom: 16.0),
+              child: Image.asset(AssetPath.TMDB_LOGO),
             ),
-            Padding(
-              padding: const EdgeInsets.only(
-                left: 16.0,
-                right: 16.0,
-              ),
-              child: Text(
+            Parent(
+              style: ParentStyle()..padding(horizontal: 16.0),
+              child: Txt(
                 TranslatableStrings.TMDB_ATTRIBUTION_MESSAGE,
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                ),
+                style: TxtStyle()..textColor(Colors.grey.shade700),
               ),
             ),
           ],
         ),
       ),
-      title: Text(
+      title: Txt(
         TranslatableStrings.ATTRIBUTIONS,
-        style: TextStyle(
-          fontSize: 25.0,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TxtStyle()
+          ..bold()
+          ..fontSize(25.0),
       ),
     );
   }

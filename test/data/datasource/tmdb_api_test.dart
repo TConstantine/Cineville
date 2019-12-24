@@ -3,8 +3,11 @@ import 'dart:convert';
 import 'package:cineville/data/datasource/remote_data_source.dart';
 import 'package:cineville/data/datasource/tmdb_api.dart';
 import 'package:cineville/data/error/exception/server_exception.dart';
+import 'package:cineville/data/model/actor_model.dart';
 import 'package:cineville/data/model/genre_model.dart';
 import 'package:cineville/data/model/movie_model.dart';
+import 'package:cineville/data/model/review_model.dart';
+import 'package:cineville/data/model/video_model.dart';
 import 'package:cineville/data/network/tmdb_api_constant.dart';
 import 'package:cineville/data/network/tmdb_api_key.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,158 +15,263 @@ import 'package:http/http.dart' as http;
 import 'package:matcher/matcher.dart';
 import 'package:mockito/mockito.dart';
 
+import '../../test_util/test_actor_model_builder.dart';
 import '../../test_util/test_genre_model_builder.dart';
 import '../../test_util/test_movie_model_builder.dart';
+import '../../test_util/test_review_model_builder.dart';
+import '../../test_util/test_video_model_builder.dart';
 
 class MockHttpClient extends Mock implements http.Client {}
 
 void main() {
-  MockHttpClient _mockHttpClient;
-  RemoteDataSource _dataSource;
+  MockHttpClient mockHttpClient;
+  RemoteDataSource remoteDataSource;
 
   setUp(() {
-    _mockHttpClient = MockHttpClient();
-    _dataSource = TmdbApi(_mockHttpClient);
+    mockHttpClient = MockHttpClient();
+    remoteDataSource = TmdbApi(mockHttpClient);
   });
 
   final int testPage = 1;
+  final int testMovieId = 100;
   final String testMovieModelsJson =
       json.encode({'results': TestMovieModelBuilder().buildMultipleJson()});
   final List<MovieModel> testMovieModels = TestMovieModelBuilder().buildMultiple();
   final String testGenreModelsJson =
-      json.encode({'genres': TestGenreModelBuilder().buildJsonMultiple()});
+      json.encode({'genres': TestGenreModelBuilder().buildMultipleJson()});
   final List<GenreModel> testGenreModels = TestGenreModelBuilder().buildMultiple();
-
-  void _whenHttpRequestForGenresIsSuccessful(Function body) {
-    group('when http request for genres is successful', () {
-      setUp(() {
-        when(_mockHttpClient.get(any))
-            .thenAnswer((_) async => http.Response(testGenreModelsJson, 200));
-      });
-
-      body();
-    });
-  }
-
-  void _whenHttpRequestForMoviesIsSuccessful(Function body) {
-    group('when http request for movies is successful', () {
-      setUp(() {
-        when(_mockHttpClient.get(any))
-            .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
-      });
-
-      body();
-    });
-  }
-
-  void _whenHttpRequestIsUnsuccessful(Function body) {
-    group('when http request is unsuccessful', () {
-      setUp(() {
-        when(_mockHttpClient.get(any))
-            .thenAnswer((_) async => http.Response('Something went wrong', 404));
-      });
-
-      body();
-    });
-  }
+  final List<ActorModel> testActorModels = TestActorModelBuilder().buildMultiple();
+  final List<ReviewModel> testReviewModels = TestReviewModelBuilder().buildMultiple();
+  final List<VideoModel> testVideoModels = TestVideoModelBuilder().buildMultiple();
+  final String testActorModelsJson =
+      json.encode({'cast': TestActorModelBuilder().buildMultipleJson()});
+  final String testReviewModelsJson =
+      json.encode({'results': TestReviewModelBuilder().buildMultipleJson()});
+  final String testVideoModelsJson =
+      json.encode({'results': TestVideoModelBuilder().buildMultipleJson()});
 
   group('getMovieGenres', () {
-    _whenHttpRequestForGenresIsSuccessful(() {
-      test('should perform a GET request on movie genres endpoint', () async {
-        _dataSource.getMovieGenres();
+    test('should perform GET request on movie genres endpoint', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testGenreModelsJson, 200));
 
-        verify(_mockHttpClient.get(
-            '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.MOVIE_GENRES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY'));
-      });
+      remoteDataSource.getMovieGenres();
 
-      test('should return genre daos', () async {
-        final List<GenreModel> genreModels = await _dataSource.getMovieGenres();
-
-        expect(genreModels, testGenreModels);
-      });
+      verify(mockHttpClient.get(
+          '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.MOVIE_GENRES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY'));
     });
 
-    _whenHttpRequestIsUnsuccessful(() {
-      test('should throw a server exception', () {
-        final Function call = _dataSource.getMovieGenres;
+    test('should return genre daos', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testGenreModelsJson, 200));
 
-        expect(() => call(), throwsA(TypeMatcher<ServerException>()));
-      });
+      final List<GenreModel> genreModels = await remoteDataSource.getMovieGenres();
+
+      expect(genreModels, testGenreModels);
+    });
+
+    test('should throw server exception', () {
+      when(mockHttpClient.get(any)).thenAnswer((_) async => http.Response('', 404));
+
+      final Function call = remoteDataSource.getMovieGenres;
+
+      expect(() => call(), throwsA(TypeMatcher<ServerException>()));
+    });
+  });
+
+  group('getMovieActors', () {
+    test('should perform GET request on actors endpoint', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testActorModelsJson, 200));
+
+      remoteDataSource.getMovieActors(testMovieId);
+
+      verify(mockHttpClient.get(
+          '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.MOVIE}$testMovieId${TmdbApiConstant.ACTORS_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY'));
+    });
+
+    test('should return actor models', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testActorModelsJson, 200));
+
+      final List<ActorModel> models = await remoteDataSource.getMovieActors(testMovieId);
+
+      expect(models, testActorModels);
+    });
+
+    test('should throw server exception', () {
+      when(mockHttpClient.get(any)).thenAnswer((_) async => http.Response('', 404));
+
+      final Function call = remoteDataSource.getMovieActors;
+
+      expect(() => call(testMovieId), throwsA(TypeMatcher<ServerException>()));
+    });
+  });
+
+  group('getMovieReviews', () {
+    test('should perform GET request on reviews endpoint', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testReviewModelsJson, 200));
+
+      remoteDataSource.getMovieReviews(testMovieId);
+
+      verify(mockHttpClient.get(
+          '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.MOVIE}$testMovieId${TmdbApiConstant.REVIEWS_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY'));
+    });
+
+    test('should return review models', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testReviewModelsJson, 200));
+
+      final List<ReviewModel> models = await remoteDataSource.getMovieReviews(testMovieId);
+
+      expect(models, testReviewModels);
+    });
+
+    test('should throw server exception', () {
+      when(mockHttpClient.get(any)).thenAnswer((_) async => http.Response('', 404));
+
+      final Function call = remoteDataSource.getMovieReviews;
+
+      expect(() => call(testMovieId), throwsA(TypeMatcher<ServerException>()));
+    });
+  });
+
+  group('getMovieVideos', () {
+    test('should perform GET request on videos endpoint', () {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testVideoModelsJson, 200));
+
+      remoteDataSource.getMovieVideos(testMovieId);
+
+      verify(mockHttpClient.get(
+          '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.MOVIE}$testMovieId${TmdbApiConstant.VIDEOS_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY'));
+      verifyNoMoreInteractions(mockHttpClient);
+    });
+
+    test('should return video models', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testVideoModelsJson, 200));
+
+      final List<VideoModel> videoModels = await remoteDataSource.getMovieVideos(testMovieId);
+
+      expect(videoModels, testVideoModels);
     });
   });
 
   group('getPopularMovies', () {
-    _whenHttpRequestForMoviesIsSuccessful(() {
-      test('should perform a GET request on popular movies endpoint', () async {
-        _dataSource.getPopularMovies(testPage);
+    test('should perform GET request on popular movies endpoint', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
 
-        verify(_mockHttpClient.get(
-            '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.POPULAR_MOVIES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$testPage'));
-      });
+      remoteDataSource.getPopularMovies(testPage);
 
-      test('should return movie daos', () async {
-        final List<MovieModel> movieModels = await _dataSource.getPopularMovies(testPage);
-
-        expect(movieModels, testMovieModels);
-      });
+      verify(mockHttpClient.get(
+          '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.POPULAR_MOVIES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$testPage'));
     });
 
-    _whenHttpRequestIsUnsuccessful(() {
-      test('should throw a server exception', () {
-        final Function call = _dataSource.getPopularMovies;
+    test('should return movie models', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
 
-        expect(() => call(testPage), throwsA(TypeMatcher<ServerException>()));
-      });
+      final List<MovieModel> models = await remoteDataSource.getPopularMovies(testPage);
+
+      expect(models, testMovieModels);
+    });
+
+    test('should throw server exception', () {
+      when(mockHttpClient.get(any)).thenAnswer((_) async => http.Response('', 404));
+
+      final Function call = remoteDataSource.getPopularMovies;
+
+      expect(() => call(testPage), throwsA(TypeMatcher<ServerException>()));
+    });
+  });
+
+  group('getSimilarMovies', () {
+    test('should perform GET request on similar movies endpoint', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
+
+      await remoteDataSource.getSimilarMovies(testMovieId);
+
+      verify(mockHttpClient.get(
+          '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.MOVIE}$testMovieId${TmdbApiConstant.SIMILAR_MOVIES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$testPage'));
+    });
+
+    test('should return movie models', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
+
+      final List<MovieModel> models = await remoteDataSource.getSimilarMovies(testMovieId);
+
+      expect(models, testMovieModels);
+    });
+
+    test('should throw server exception', () {
+      when(mockHttpClient.get(any)).thenAnswer((_) async => http.Response('', 404));
+
+      final Function call = remoteDataSource.getSimilarMovies;
+
+      expect(() => call(testPage), throwsA(TypeMatcher<ServerException>()));
     });
   });
 
   group('getTopRatedMovies', () {
-    _whenHttpRequestForMoviesIsSuccessful(() {
-      test('should perform a GET request on top rated movies endpoint', () async {
-        _dataSource.getTopRatedMovies(testPage);
+    test('should perform GET request on top rated movies endpoint', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
 
-        verify(_mockHttpClient.get(
-            '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.TOP_RATED_MOVIES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$testPage'));
-      });
+      await remoteDataSource.getTopRatedMovies(testPage);
 
-      test('should return movie daos', () async {
-        final List<MovieModel> movieModels = await _dataSource.getTopRatedMovies(testPage);
-
-        expect(movieModels, testMovieModels);
-      });
+      verify(mockHttpClient.get(
+          '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.TOP_RATED_MOVIES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$testPage'));
     });
 
-    _whenHttpRequestIsUnsuccessful(() {
-      test('should throw a server exception', () {
-        final Function call = _dataSource.getTopRatedMovies;
+    test('should return movie models', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
 
-        expect(() => call(testPage), throwsA(TypeMatcher<ServerException>()));
-      });
+      final List<MovieModel> models = await remoteDataSource.getTopRatedMovies(testPage);
+
+      expect(models, testMovieModels);
+    });
+
+    test('should throw server exception', () {
+      when(mockHttpClient.get(any)).thenAnswer((_) async => http.Response('', 404));
+
+      final Function call = remoteDataSource.getTopRatedMovies;
+
+      expect(() => call(testPage), throwsA(TypeMatcher<ServerException>()));
     });
   });
 
   group('getUpcomingMovies', () {
-    _whenHttpRequestForMoviesIsSuccessful(() {
-      test('should perform a GET request on upcoming movies endpoint', () async {
-        _dataSource.getUpcomingMovies(testPage);
+    test('should perform GET request on upcoming movies endpoint', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
 
-        verify(_mockHttpClient.get(
-            '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.UPCOMING_MOVIES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$testPage'));
-      });
+      remoteDataSource.getUpcomingMovies(testPage);
 
-      test('should return movie daos', () async {
-        final List<MovieModel> movieModels = await _dataSource.getUpcomingMovies(testPage);
-
-        expect(movieModels, testMovieModels);
-      });
+      verify(mockHttpClient.get(
+          '${TmdbApiConstant.BASE_URL}${TmdbApiConstant.UPCOMING_MOVIES_ENDPOINT}?${TmdbApiConstant.API_KEY_QUERY}$TMDB_API_KEY&${TmdbApiConstant.PAGE_QUERY}$testPage'));
     });
 
-    _whenHttpRequestIsUnsuccessful(() {
-      test('should throw a server exception', () {
-        final Function call = _dataSource.getUpcomingMovies;
+    test('should return movie models', () async {
+      when(mockHttpClient.get(any))
+          .thenAnswer((_) async => http.Response(testMovieModelsJson, 200));
 
-        expect(() => call(testPage), throwsA(TypeMatcher<ServerException>()));
-      });
+      final List<MovieModel> models = await remoteDataSource.getUpcomingMovies(testPage);
+
+      expect(models, testMovieModels);
+    });
+
+    test('should throw server exception', () {
+      when(mockHttpClient.get(any)).thenAnswer((_) async => http.Response('', 404));
+
+      final Function call = remoteDataSource.getUpcomingMovies;
+
+      expect(() => call(testPage), throwsA(TypeMatcher<ServerException>()));
     });
   });
 }

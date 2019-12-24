@@ -1,6 +1,6 @@
-import 'package:cineville/presentation/bloc/movies_state.dart';
+import 'package:cineville/presentation/bloc/bloc_state.dart';
 
-class EmptyState extends MoviesState {
+class EmptyState extends BlocState {
   @override
   List<Object> get props => [];
 }

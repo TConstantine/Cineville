@@ -1,4 +1,4 @@
 abstract class LocalDateSource {
-  Future<int> getDate();
-  Future storeDate(int dateInMillis);
+  Future<int> getDate(String key);
+  Future storeDate(String key, int dateInMillis);
 }

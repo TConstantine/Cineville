@@ -4,13 +4,13 @@ import 'package:cineville/domain/repository/movie_repository.dart';
 import 'package:cineville/domain/usecase/use_case.dart';
 import 'package:dartz/dartz.dart';
 
-class GetUpcomingMovies implements UseCase {
-  final MovieRepository _movieRepository;
+class GetUpcomingMovies implements UseCase<Movie> {
+  final MovieRepository repository;
 
-  GetUpcomingMovies(this._movieRepository);
+  GetUpcomingMovies(this.repository);
 
   @override
   Future<Either<Failure, List<Movie>>> execute(int page) {
-    return _movieRepository.getUpcomingMovies(page);
+    return repository.getUpcomingMovies(page);
   }
 }

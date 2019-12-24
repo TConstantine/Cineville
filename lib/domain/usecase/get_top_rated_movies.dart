@@ -4,13 +4,13 @@ import 'package:cineville/domain/repository/movie_repository.dart';
 import 'package:cineville/domain/usecase/use_case.dart';
 import 'package:dartz/dartz.dart';
 
-class GetTopRatedMovies implements UseCase {
-  final MovieRepository _movieRepository;
+class GetTopRatedMovies implements UseCase<Movie> {
+  final MovieRepository repository;
 
-  GetTopRatedMovies(this._movieRepository);
+  GetTopRatedMovies(this.repository);
 
   @override
   Future<Either<Failure, List<Movie>>> execute(int page) async {
-    return await _movieRepository.getTopRatedMovies(page);
+    return await repository.getTopRatedMovies(page);
   }
 }

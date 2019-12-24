@@ -9,4 +9,5 @@ part of 'movie_dao.dart';
 mixin _$MovieDaoMixin on DatabaseAccessor<Database> {
   $MovieEntriesTable get movieEntries => db.movieEntries;
   $MovieTagEntriesTable get movieTagEntries => db.movieTagEntries;
+  $SimilarMovieEntriesTable get similarMovieEntries => db.similarMovieEntries;
 }
