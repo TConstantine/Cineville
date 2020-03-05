@@ -4,19 +4,20 @@ import 'package:cineville/data/database/dao/movie_dao.dart';
 import 'package:cineville/data/database/dao/review_dao.dart';
 import 'package:cineville/data/database/dao/video_dao.dart';
 import 'package:cineville/data/database/database.dart';
-import 'package:cineville/data/datasource/local_data_source.dart';
-import 'package:cineville/data/datasource/local_date_source.dart';
-import 'package:cineville/data/datasource/local_preferences.dart';
-import 'package:cineville/data/datasource/moor_database.dart';
+import 'package:cineville/data/datasource/database_data_source.dart';
+import 'package:cineville/data/datasource/preferences_data_source.dart';
+import 'package:cineville/data/datasource/shared_preferences_data_source.dart';
+import 'package:cineville/data/datasource/moor_database_data_source.dart';
 import 'package:cineville/data/datasource/remote_data_source.dart';
-import 'package:cineville/data/datasource/tmdb_api.dart';
-import 'package:cineville/data/mapper/actor_mapper.dart';
-import 'package:cineville/data/mapper/movie_mapper.dart';
-import 'package:cineville/data/mapper/review_mapper.dart';
-import 'package:cineville/data/mapper/video_mapper.dart';
+import 'package:cineville/data/datasource/tmdb_remote_data_source.dart';
+import 'package:cineville/data/mapper/actor_domain_entity_mapper.dart';
+import 'package:cineville/data/mapper/movie_domain_entity_mapper.dart';
+import 'package:cineville/data/mapper/review_domain_entity_mapper.dart';
+import 'package:cineville/data/mapper/video_domain_entity_mapper.dart';
 import 'package:cineville/data/network/network.dart';
 import 'package:cineville/data/network/wireless_network.dart';
 import 'package:cineville/data/repository/actor_depository.dart';
+import 'package:cineville/data/repository/favorite_depository.dart';
 import 'package:cineville/data/repository/movie_depository.dart';
 import 'package:cineville/data/repository/review_depository.dart';
 import 'package:cineville/data/repository/video_depository.dart';
@@ -25,18 +26,26 @@ import 'package:cineville/domain/entity/movie.dart';
 import 'package:cineville/domain/entity/review.dart';
 import 'package:cineville/domain/entity/video.dart';
 import 'package:cineville/domain/repository/actor_repository.dart';
+import 'package:cineville/domain/repository/favorite_repository.dart';
 import 'package:cineville/domain/repository/movie_repository.dart';
 import 'package:cineville/domain/repository/review_repository.dart';
 import 'package:cineville/domain/repository/video_repository.dart';
-import 'package:cineville/domain/usecase/get_movie_actors.dart';
-import 'package:cineville/domain/usecase/get_movie_reviews.dart';
-import 'package:cineville/domain/usecase/get_movie_videos.dart';
-import 'package:cineville/domain/usecase/get_popular_movies.dart';
-import 'package:cineville/domain/usecase/get_similar_movies.dart';
-import 'package:cineville/domain/usecase/get_top_rated_movies.dart';
-import 'package:cineville/domain/usecase/get_upcoming_movies.dart';
-import 'package:cineville/domain/usecase/use_case.dart';
+import 'package:cineville/domain/usecase/mark_movie_as_favorite_use_case.dart';
+import 'package:cineville/domain/usecase/get_favorite_movies_use_case.dart';
+import 'package:cineville/domain/usecase/get_movie_actors_use_case.dart';
+import 'package:cineville/domain/usecase/get_movie_reviews_use_case.dart';
+import 'package:cineville/domain/usecase/get_movie_videos_use_case.dart';
+import 'package:cineville/domain/usecase/get_popular_movies_use_case.dart';
+import 'package:cineville/domain/usecase/get_similar_movies_use_case.dart';
+import 'package:cineville/domain/usecase/get_top_rated_movies_use_case.dart';
+import 'package:cineville/domain/usecase/get_upcoming_movies_use_case.dart';
+import 'package:cineville/domain/usecase/is_movie_marked_as_favorite_use_case.dart';
+import 'package:cineville/domain/usecase/remove_movie_from_favorites_use_case.dart';
+import 'package:cineville/domain/usecase/use_case_no_params.dart';
+import 'package:cineville/domain/usecase/use_case_with_params.dart';
 import 'package:cineville/presentation/bloc/actors_bloc.dart';
+import 'package:cineville/presentation/bloc/favorite_list_bloc.dart';
+import 'package:cineville/presentation/bloc/favorite_movie_bloc.dart';
 import 'package:cineville/presentation/bloc/movies_bloc.dart';
 import 'package:cineville/presentation/bloc/reviews_bloc.dart';
 import 'package:cineville/presentation/bloc/videos_bloc.dart';
@@ -50,137 +59,177 @@ import 'package:shared_preferences/shared_preferences.dart';
 final GetIt injector = GetIt.instance;
 
 class Injector {
-  MovieRepository _movieRepository;
-  ActorRepository _actorRepository;
-  ReviewRepository _reviewRepository;
-  VideoRepository _videoRepository;
+  MoviesBloc _moviesBloc;
+  ActorsBloc _actorsBloc;
+  FavoriteMovieBloc _favoriteMovieBloc;
+  FavoriteListBloc _favoriteListBloc;
+  RemoteDataSource _remoteDataSource;
 
-  Injector withMovieRepository(MovieRepository repository) {
-    _movieRepository = repository;
+  Injector withMoviesBloc(MoviesBloc bloc) {
+    _moviesBloc = bloc;
     return this;
   }
 
-  Injector withActorRepository(ActorRepository repository) {
-    _actorRepository = repository;
+  Injector withActorsBloc(ActorsBloc bloc) {
+    _actorsBloc = bloc;
     return this;
   }
 
-  Injector withReviewRepository(ReviewRepository repository) {
-    _reviewRepository = repository;
+  Injector withFavoriteMovieBloc(FavoriteMovieBloc bloc) {
+    _favoriteMovieBloc = bloc;
     return this;
   }
 
-  Injector withVideoRepository(VideoRepository repository) {
-    _videoRepository = repository;
+  Injector withFavoriteListBloc(FavoriteListBloc bloc) {
+    _favoriteListBloc = bloc;
+    return this;
+  }
+
+  Injector withRemoteDataSource(RemoteDataSource dataSource) {
+    _remoteDataSource = dataSource;
     return this;
   }
 
   Future inject() async {
-    // Bloc
+    // Blocs
     injector.registerFactory(
-      () => MoviesBloc(
-          injector(UseCaseKey.GET_POPULAR_MOVIES) as GetPopularMovies,
-          injector(UseCaseKey.GET_UPCOMING_MOVIES) as GetUpcomingMovies,
-          injector(UseCaseKey.GET_TOP_RATED_MOVIES) as GetTopRatedMovies,
-          injector(UseCaseKey.GET_SIMILAR_MOVIES) as GetSimilarMovies),
+      () => _moviesBloc == null
+          ? MoviesBloc(
+              injector(UseCaseKey.GET_POPULAR_MOVIES) as GetPopularMoviesUseCase,
+              injector(UseCaseKey.GET_UPCOMING_MOVIES) as GetUpcomingMoviesUseCase,
+              injector(UseCaseKey.GET_TOP_RATED_MOVIES) as GetTopRatedMoviesUseCase,
+              injector(UseCaseKey.GET_SIMILAR_MOVIES) as GetSimilarMoviesUseCase)
+          : _moviesBloc,
     );
     injector.registerFactory(
-      () => ActorsBloc(injector(UseCaseKey.GET_MOVIE_ACTORS) as GetMovieActors),
+      () => _actorsBloc == null
+          ? ActorsBloc(injector(UseCaseKey.GET_MOVIE_ACTORS) as GetMovieActorsUseCase)
+          : _actorsBloc,
     );
     injector.registerFactory(
-      () => ReviewsBloc(injector(UseCaseKey.GET_MOVIE_REVIEWS) as GetMovieReviews),
+      () => ReviewsBloc(injector(UseCaseKey.GET_MOVIE_REVIEWS) as GetMovieReviewsUseCase),
     );
     injector.registerFactory(
-      () => VideosBloc(injector(UseCaseKey.GET_MOVIE_VIDEOS) as GetMovieVideos),
+      () => VideosBloc(injector(UseCaseKey.GET_MOVIE_VIDEOS) as GetMovieVideosUseCase),
+    );
+    injector.registerFactory(
+      () => _favoriteMovieBloc == null
+          ? FavoriteMovieBloc(
+              injector(UseCaseKey.IS_FAVORITE_MOVIE) as IsMovieMarkedAsFavoriteUseCase,
+              injector(UseCaseKey.ADD_MOVIE_TO_FAVORITE_LIST) as MarkMovieAsFavoriteUseCase,
+              injector(UseCaseKey.REMOVE_MOVIE_FROM_FAVORITE_LIST) as RemoveMovieFromFavoritesUseCase)
+          : _favoriteMovieBloc,
+    );
+    injector.registerFactory(
+      () => _favoriteListBloc == null
+          ? FavoriteListBloc(injector(UseCaseKey.GET_FAVORITE_MOVIES) as GetFavoriteMoviesUseCase)
+          : _favoriteListBloc,
     );
 
-    // Use Case
-    injector.registerLazySingleton<UseCase<Movie>>(
-      () => GetPopularMovies(injector()),
+    // Use Cases
+    injector.registerLazySingleton<UseCaseWithParams<List<Movie>, int>>(
+      () => GetPopularMoviesUseCase(injector()),
       instanceName: UseCaseKey.GET_POPULAR_MOVIES,
     );
-    injector.registerLazySingleton<UseCase<Movie>>(
-      () => GetUpcomingMovies(injector()),
+    injector.registerLazySingleton<UseCaseWithParams<List<Movie>, int>>(
+      () => GetUpcomingMoviesUseCase(injector()),
       instanceName: UseCaseKey.GET_UPCOMING_MOVIES,
     );
-    injector.registerLazySingleton<UseCase<Movie>>(
-      () => GetTopRatedMovies(injector()),
+    injector.registerLazySingleton<UseCaseWithParams<List<Movie>, int>>(
+      () => GetTopRatedMoviesUseCase(injector()),
       instanceName: UseCaseKey.GET_TOP_RATED_MOVIES,
     );
-    injector.registerLazySingleton<UseCase<Actor>>(
-      () => GetMovieActors(injector()),
+    injector.registerLazySingleton<UseCaseWithParams<List<Actor>, int>>(
+      () => GetMovieActorsUseCase(injector()),
       instanceName: UseCaseKey.GET_MOVIE_ACTORS,
     );
-    injector.registerLazySingleton<UseCase<Review>>(
-      () => GetMovieReviews(injector()),
+    injector.registerLazySingleton<UseCaseWithParams<List<Review>, int>>(
+      () => GetMovieReviewsUseCase(injector()),
       instanceName: UseCaseKey.GET_MOVIE_REVIEWS,
     );
-    injector.registerLazySingleton<UseCase<Movie>>(
-      () => GetSimilarMovies(injector()),
+    injector.registerLazySingleton<UseCaseWithParams<List<Movie>, int>>(
+      () => GetSimilarMoviesUseCase(injector()),
       instanceName: UseCaseKey.GET_SIMILAR_MOVIES,
     );
-    injector.registerLazySingleton<UseCase<Video>>(
-      () => GetMovieVideos(injector()),
+    injector.registerLazySingleton<UseCaseWithParams<List<Video>, int>>(
+      () => GetMovieVideosUseCase(injector()),
       instanceName: UseCaseKey.GET_MOVIE_VIDEOS,
     );
+    injector.registerLazySingleton<UseCaseNoParams<List<Movie>>>(
+      () => GetFavoriteMoviesUseCase(injector()),
+      instanceName: UseCaseKey.GET_FAVORITE_MOVIES,
+    );
+    injector.registerLazySingleton<UseCaseWithParams<bool, int>>(
+      () => IsMovieMarkedAsFavoriteUseCase(injector()),
+      instanceName: UseCaseKey.IS_FAVORITE_MOVIE,
+    );
+    injector.registerLazySingleton<UseCaseWithParams<void, int>>(
+      () => MarkMovieAsFavoriteUseCase(injector()),
+      instanceName: UseCaseKey.ADD_MOVIE_TO_FAVORITE_LIST,
+    );
+    injector.registerLazySingleton<UseCaseWithParams<void, int>>(
+      () => RemoveMovieFromFavoritesUseCase(injector()),
+      instanceName: UseCaseKey.REMOVE_MOVIE_FROM_FAVORITE_LIST,
+    );
 
-    // Repository
+    // Repositories
     injector.registerLazySingleton<MovieRepository>(
-      () => _movieRepository == null
-          ? MovieDepository(
-              injector(),
-              injector(),
-              injector(),
-              injector(),
-              injector(),
-            )
-          : _movieRepository,
+      () => MovieDepository(
+        injector(),
+        injector(),
+        injector(),
+        injector(),
+        injector(),
+      ),
     );
     injector.registerLazySingleton<ActorRepository>(
-      () => _actorRepository == null
-          ? ActorDepository(
-              injector(),
-              injector(),
-              injector(),
-              injector(),
-            )
-          : _actorRepository,
+      () => ActorDepository(
+        injector(),
+        injector(),
+        injector(),
+        injector(),
+      ),
     );
     injector.registerLazySingleton<ReviewRepository>(
-      () => _reviewRepository == null
-          ? ReviewDepository(
-              injector(),
-              injector(),
-              injector(),
-              injector(),
-            )
-          : _reviewRepository,
+      () => ReviewDepository(
+        injector(),
+        injector(),
+        injector(),
+        injector(),
+      ),
     );
     injector.registerLazySingleton<VideoRepository>(
-      () => _videoRepository == null
-          ? VideoDepository(
-              injector(),
-              injector(),
-              injector(),
-              injector(),
-            )
-          : _videoRepository,
+      () => VideoDepository(
+        injector(),
+        injector(),
+        injector(),
+        injector(),
+      ),
     );
 
-    // Data Source
-    injector.registerLazySingleton<RemoteDataSource>(() => TmdbApi(injector()));
-    injector.registerLazySingleton<LocalDataSource>(
-        () => MoorDatabase(injector(), injector(), injector(), injector(), injector()));
-    injector.registerLazySingleton<LocalDateSource>(() => LocalPreferences(injector()));
+    injector.registerLazySingleton<FavoriteRepository>(
+      () => FavoriteDepository(
+        injector(),
+        injector(),
+      ),
+    );
+
+    // Data Sources
+    injector.registerLazySingleton<RemoteDataSource>(
+      () => _remoteDataSource == null ? TmdbRemoteDataSource(injector()) : _remoteDataSource,
+    );
+    injector.registerLazySingleton<DatabaseDataSource>(
+        () => MoorDatabaseDataSource(injector(), injector(), injector(), injector(), injector()));
+    injector.registerLazySingleton<PreferencesDataSource>(() => SharedPreferencesDataSource(injector()));
 
     // Network
     injector.registerLazySingleton<Network>(() => WirelessNetwork(injector()));
 
     // Mapper
-    injector.registerLazySingleton(() => MovieMapper());
-    injector.registerLazySingleton(() => ActorMapper());
-    injector.registerLazySingleton(() => ReviewMapper());
-    injector.registerLazySingleton(() => VideoMapper());
+    injector.registerLazySingleton(() => MovieDomainEntityMapper());
+    injector.registerLazySingleton(() => ActorDomainEntityMapper());
+    injector.registerLazySingleton(() => ReviewDomainEntityMapper());
+    injector.registerLazySingleton(() => VideoDomainEntityMapper());
 
     // Database
     injector.registerLazySingleton(

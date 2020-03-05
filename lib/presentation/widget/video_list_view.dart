@@ -42,8 +42,8 @@ class _VideoListViewState extends State<VideoListView> {
       builder: (context, state) {
         if (state is LoadingState) {
           return _buildLoadingState();
-        } else if (state is LoadedState<Video>) {
-          return _buildLoadedState(state.entities);
+        } else if (state is LoadedState<List<Video>>) {
+          return _buildLoadedState(state.loadedData);
         } else if (state is ErrorState) {
           return _buildErrorState();
         } else {

@@ -11,6 +11,7 @@ dependencies:
   cached_network_image: ^2.0.0-rc
   dartz: ^0.8.7
   data_connection_checker: ^0.3.4
+  device_info: ^0.4.1+4
   division: ^0.8.7+2
   equatable: ^0.6.0
   flutter_bloc: ^0.21.0
@@ -24,10 +25,13 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_driver:
+    sdk: flutter
   build_runner: ^1.7.1
   mockito: ^4.1.1
   moor_ffi: ^0.3.0
   moor_generator: ^2.0.0
+  test: any
 
 flutter:
   uses-material-design: true

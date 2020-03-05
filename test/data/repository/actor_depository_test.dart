@@ -1,11 +1,12 @@
-import 'package:cineville/data/datasource/local_data_source.dart';
+import 'package:cineville/data/datasource/database_data_source.dart';
 import 'package:cineville/data/datasource/remote_data_source.dart';
+import 'package:cineville/data/entity/data_entity.dart';
+import 'package:cineville/data/entity/data_entity_type.dart';
 import 'package:cineville/data/error/exception/server_exception.dart';
-import 'package:cineville/data/error/failure/network_failure.dart';
-import 'package:cineville/data/error/failure/no_data_failure.dart';
-import 'package:cineville/data/error/failure/server_failure.dart';
-import 'package:cineville/data/mapper/actor_mapper.dart';
-import 'package:cineville/data/model/actor_model.dart';
+import 'package:cineville/domain/error/failure/network_failure.dart';
+import 'package:cineville/domain/error/failure/no_data_failure.dart';
+import 'package:cineville/domain/error/failure/server_failure.dart';
+import 'package:cineville/data/mapper/actor_domain_entity_mapper.dart';
 import 'package:cineville/data/network/network.dart';
 import 'package:cineville/data/repository/actor_depository.dart';
 import 'package:cineville/domain/entity/actor.dart';
@@ -15,131 +16,107 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import '../../test_util/test_actor_builder.dart';
-import '../../test_util/test_actor_model_builder.dart';
+import '../../builder/data_entity_builder.dart';
+import '../../builder/actor_domain_entity_builder.dart';
+import '../../builder/actor_data_entity_builder.dart';
+import '../../builder/domain_entity_builder.dart';
 
 class MockRemoteDataSource extends Mock implements RemoteDataSource {}
 
-class MockLocalDataSource extends Mock implements LocalDataSource {}
+class MockDatabaseDataSource extends Mock implements DatabaseDataSource {}
 
 class MockNetwork extends Mock implements Network {}
 
-class MockMapper extends Mock implements ActorMapper {}
+class MockActorDomainEntityMapper extends Mock implements ActorDomainEntityMapper {}
 
 void main() {
+  DomainEntityBuilder actorDomainEntityBuilder;
+  DataEntityBuilder actorDataEntityBuilder;
   RemoteDataSource mockRemoteDataSource;
-  LocalDataSource mockLocalDataSource;
+  DatabaseDataSource mockDatabaseDataSource;
   Network mockNetwork;
-  ActorMapper mockMapper;
-  ActorRepository repository;
+  ActorDomainEntityMapper mockActorDomainEntityMapper;
+  ActorRepository actorRepository;
 
   setUp(() {
+    actorDomainEntityBuilder = ActorDomainEntityBuilder();
+    actorDataEntityBuilder = ActorDataEntityBuilder();
     mockRemoteDataSource = MockRemoteDataSource();
-    mockLocalDataSource = MockLocalDataSource();
+    mockDatabaseDataSource = MockDatabaseDataSource();
     mockNetwork = MockNetwork();
-    mockMapper = MockMapper();
-    repository = ActorDepository(
+    mockActorDomainEntityMapper = MockActorDomainEntityMapper();
+    actorRepository = ActorDepository(
       mockRemoteDataSource,
-      mockLocalDataSource,
+      mockDatabaseDataSource,
       mockNetwork,
-      mockMapper,
+      mockActorDomainEntityMapper,
     );
   });
 
-  final int testMovieId = 200;
-  final List<ActorModel> testActorModels = TestActorModelBuilder().buildMultiple();
-  final List<Actor> testActors = TestActorBuilder().buildMultiple();
+  test('should return cached actors from database data source', () async {
+    final int movieId = 1;
+    final List<Actor> actorDomainEntities = actorDomainEntityBuilder.buildList();
+    final List<DataEntity> actorDataEntities = actorDataEntityBuilder.buildList();
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any))
+        .thenAnswer((_) async => actorDataEntities);
+    when(mockActorDomainEntityMapper.map(any)).thenReturn(actorDomainEntities);
 
-  test('should return cached actors', () async {
-    when(mockLocalDataSource.getMovieActors(any)).thenAnswer((_) async => testActorModels);
-    when(mockMapper.map(any)).thenReturn(testActors);
+    final Either<Failure, List<Actor>> result = await actorRepository.getMovieActors(movieId);
 
-    final Either<Failure, List<Actor>> result = await repository.getMovieActors(testMovieId);
-
-    verifyZeroInteractions(mockNetwork);
+    verify(mockDatabaseDataSource.getMovieDataEntities(DataEntityType.ACTOR, movieId));
     verifyZeroInteractions(mockRemoteDataSource);
-    verifyInOrder([
-      mockLocalDataSource.getMovieActors(testMovieId),
-      mockMapper.map(testActorModels),
-    ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockMapper);
-    expect(result, equals(Right(testActors)));
+    expect(result, equals(Right(actorDomainEntities)));
   });
 
-  test('should store actors locally', () async {
-    when(mockLocalDataSource.getMovieActors(any)).thenAnswer((_) async => []);
+  test('should store actors locally when they are acquired from remote data source', () async {
+    final int movieId = 1;
+    final List<DataEntity> actorDataEntities = actorDataEntityBuilder.buildList();
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
     when(mockNetwork.isConnected()).thenAnswer((_) async => true);
-    when(mockRemoteDataSource.getMovieActors(any)).thenAnswer((_) async => testActorModels);
+    when(mockRemoteDataSource.getMovieDataEntities(any, any))
+        .thenAnswer((_) async => actorDataEntities);
 
-    await repository.getMovieActors(testMovieId);
+    await actorRepository.getMovieActors(movieId);
 
     verifyInOrder([
-      mockLocalDataSource.getMovieActors(testMovieId),
-      mockNetwork.isConnected(),
-      mockRemoteDataSource.getMovieActors(testMovieId),
-      mockLocalDataSource.storeMovieActors(testMovieId, testActorModels),
-      mockMapper.map(testActorModels),
+      mockRemoteDataSource.getMovieDataEntities(DataEntityType.ACTOR, movieId),
+      mockDatabaseDataSource.storeMovieDataEntities(
+        DataEntityType.ACTOR,
+        movieId,
+        actorDataEntities,
+      ),
     ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockRemoteDataSource);
-    verifyNoMoreInteractions(mockNetwork);
-    verifyNoMoreInteractions(mockMapper);
   });
 
-  test('should return server failure', () async {
-    when(mockLocalDataSource.getMovieActors(any)).thenAnswer((_) async => []);
+  test('should return server failure when server throws an exception', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
     when(mockNetwork.isConnected()).thenAnswer((_) async => true);
-    when(mockRemoteDataSource.getMovieActors(any)).thenThrow(ServerException());
+    when(mockRemoteDataSource.getMovieDataEntities(any, any)).thenThrow(ServerException());
 
-    final Either<Failure, List<Actor>> result = await repository.getMovieActors(testMovieId);
+    final Either<Failure, List<Actor>> result = await actorRepository.getMovieActors(movieId);
 
-    verifyZeroInteractions(mockMapper);
-    verifyInOrder([
-      mockLocalDataSource.getMovieActors(testMovieId),
-      mockNetwork.isConnected(),
-      mockRemoteDataSource.getMovieActors(testMovieId),
-    ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockRemoteDataSource);
-    verifyNoMoreInteractions(mockNetwork);
-    verifyNoMoreInteractions(mockMapper);
     expect(result, equals(Left(ServerFailure())));
   });
 
-  test('should return network failure', () async {
-    when(mockLocalDataSource.getMovieActors(any)).thenAnswer((_) async => []);
+  test('should return network failure when device is offline', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
     when(mockNetwork.isConnected()).thenAnswer((_) async => false);
 
-    final Either<Failure, List<Actor>> result = await repository.getMovieActors(testMovieId);
+    final Either<Failure, List<Actor>> result = await actorRepository.getMovieActors(movieId);
 
-    verifyZeroInteractions(mockMapper);
-    verifyZeroInteractions(mockRemoteDataSource);
-    verifyInOrder([
-      mockLocalDataSource.getMovieActors(testMovieId),
-      mockNetwork.isConnected(),
-    ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockNetwork);
     expect(result, equals(Left(NetworkFailure())));
   });
 
-  test('should return no data failure', () async {
-    when(mockLocalDataSource.getMovieActors(any)).thenAnswer((_) async => []);
+  test('should return no data failure when server responds with no results', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
     when(mockNetwork.isConnected()).thenAnswer((_) async => true);
-    when(mockRemoteDataSource.getMovieActors(any)).thenAnswer((_) async => []);
+    when(mockRemoteDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
 
-    final Either<Failure, List<Actor>> result = await repository.getMovieActors(testMovieId);
+    final Either<Failure, List<Actor>> result = await actorRepository.getMovieActors(movieId);
 
-    verifyZeroInteractions(mockMapper);
-    verifyInOrder([
-      mockLocalDataSource.getMovieActors(testMovieId),
-      mockNetwork.isConnected(),
-      mockRemoteDataSource.getMovieActors(testMovieId),
-    ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockNetwork);
-    verifyNoMoreInteractions(mockRemoteDataSource);
     expect(result, equals(Left(NoDataFailure())));
   });
 }

@@ -1,66 +1,72 @@
 import 'package:cineville/data/database/dao/review_dao.dart';
 import 'package:cineville/data/database/database.dart';
-import 'package:cineville/data/model/review_model.dart';
+import 'package:cineville/data/entity/data_entity.dart';
+import 'package:cineville/data/entity/review_data_entity.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moor_ffi/moor_ffi.dart';
 
-import '../../../test_util/test_review_model_builder.dart';
+import '../../../builder/data_entity_builder.dart';
+import '../../../builder/review_data_entity_builder.dart';
 
 void main() {
+  DataEntityBuilder reviewDataEntityBuilder;
   Database database;
-  ReviewDao dao;
+  ReviewDao reviewDao;
 
   setUp(() {
+    reviewDataEntityBuilder = ReviewDataEntityBuilder();
     database = Database(VmDatabase.memory());
-    dao = ReviewDao(database);
+    reviewDao = ReviewDao(database);
   });
 
   tearDown(() async {
     await database.close();
   });
 
-  final int testMovieId = 5;
-  final String testAuthor = 'Superman';
-  final List<ReviewModel> testReviewModelsWithDifferentAuthors =
-      TestReviewModelBuilder().withAuthors(['Batman', 'Joker', 'Spiderman']).buildMultiple();
-  final List<ReviewModel> testReviewModels = TestReviewModelBuilder().buildMultiple();
-  final List<ReviewModel> testReviewModelsWithSameAuthor =
-      TestReviewModelBuilder().withAuthors([testAuthor, testAuthor, testAuthor]).buildMultiple();
+  test('should not return any reviews when cache is empty', () async {
+    final int movieId = 1;
 
-  group('getMovieReviews', () {
-    test('should not return any reviews', () async {
-      final List<ReviewModel> reviewModels = await dao.getMovieReviews(testMovieId);
+    final List<DataEntity> reviewDataEntities = await reviewDao.getMovieReviews(movieId);
 
-      expect(reviewModels.isEmpty, true);
-    });
-
-    test('should return reviews for a specific movie', () async {
-      await dao.storeMovieReviews(testMovieId, testReviewModels);
-      await dao.storeMovieReviews(testMovieId + 1, testReviewModelsWithSameAuthor);
-      await dao.storeMovieReviews(testMovieId + 2, testReviewModels);
-
-      final List<ReviewModel> reviewModels = await dao.getMovieReviews(testMovieId + 1);
-
-      expect(reviewModels.length, 1);
-      expect(reviewModels.first.author, testAuthor);
-    });
+    expect(reviewDataEntities.isEmpty, true);
   });
 
-  group('storeMovieReviews', () {
-    test('should store reviews', () async {
-      await dao.storeMovieReviews(testMovieId, testReviewModelsWithDifferentAuthors);
+  test('should return reviews when cache is not empty', () async {
+    final int movieId = 1;
+    final List<ReviewDataEntity> reviewDataEntityList =
+        List<ReviewDataEntity>.from(reviewDataEntityBuilder.buildList());
+    await reviewDao.storeMovieReviews(movieId, reviewDataEntityList);
 
-      final List<ReviewModel> reviewModels = await dao.getMovieReviews(testMovieId);
+    final List<ReviewDataEntity> reviewDataEntities = await reviewDao.getMovieReviews(movieId);
 
-      expect(reviewModels.length, testReviewModelsWithDifferentAuthors.length);
-    });
+    expect(reviewDataEntities.length, reviewDataEntityList.length);
+    expect(reviewDataEntities.first.author, reviewDataEntityList.first.author);
+    expect(reviewDataEntities[1].author, reviewDataEntityList[1].author);
+    expect(reviewDataEntities.last.author, reviewDataEntityList.last.author);
+  });
 
-    test('should not create new entries for reviews that are already stored', () async {
-      await dao.storeMovieReviews(testMovieId, testReviewModels);
+  test('should store reviews', () async {
+    final int movieId = 1;
+    final List<DataEntity> reviewDataEntityList = reviewDataEntityBuilder.buildList();
 
-      final List<ReviewModel> reviewModels = await dao.getMovieReviews(testMovieId);
+    await reviewDao.storeMovieReviews(movieId, reviewDataEntityList);
 
-      expect(reviewModels.length, 1);
-    });
+    final List<DataEntity> reviewDataEntities = await reviewDao.getMovieReviews(movieId);
+    expect(reviewDataEntities.length, reviewDataEntityList.length);
+  });
+
+  test('should not create duplicate review entries', () async {
+    final int movieId = 1;
+    final DataEntity reviewDataEntity = reviewDataEntityBuilder.build();
+    final List<DataEntity> reviewDataEntityList = [
+      reviewDataEntity,
+      reviewDataEntity,
+      reviewDataEntity,
+    ];
+
+    await reviewDao.storeMovieReviews(movieId, reviewDataEntityList);
+
+    final List<DataEntity> reviewDataEntities = await reviewDao.getMovieReviews(movieId);
+    expect(reviewDataEntities.length, 1);
   });
 }

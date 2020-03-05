@@ -7,24 +7,21 @@ import 'package:mockito/mockito.dart';
 class MockDataConnectionChecker extends Mock implements DataConnectionChecker {}
 
 void main() {
-  DataConnectionChecker _mockDataConnectionChecker;
-  Network _network;
+  DataConnectionChecker mockDataConnectionChecker;
+  Network network;
 
   setUp(() {
-    _mockDataConnectionChecker = MockDataConnectionChecker();
-    _network = WirelessNetwork(_mockDataConnectionChecker);
+    mockDataConnectionChecker = MockDataConnectionChecker();
+    network = WirelessNetwork(mockDataConnectionChecker);
   });
 
-  group('isConnected', () {
+  test('should check if the device is connected to the internet', () async {
     final testIsConnected = Future.value(true);
+    when(mockDataConnectionChecker.hasConnection).thenAnswer((_) => testIsConnected);
 
-    test('should check if the device is connected to the internet', () async {
-      when(_mockDataConnectionChecker.hasConnection).thenAnswer((_) => testIsConnected);
+    final Future<bool> isConnected = network.isConnected();
 
-      final Future<bool> isConnected = _network.isConnected();
-
-      verify(_mockDataConnectionChecker.hasConnection);
-      expect(isConnected, testIsConnected);
-    });
+    verify(mockDataConnectionChecker.hasConnection);
+    expect(isConnected, testIsConnected);
   });
 }

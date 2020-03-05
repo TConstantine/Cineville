@@ -1,9 +1,9 @@
 import 'package:bloc/bloc.dart';
-import 'package:cineville/data/error/failure/network_failure.dart';
-import 'package:cineville/data/error/failure/no_data_failure.dart';
-import 'package:cineville/data/error/failure/server_failure.dart';
+import 'package:cineville/domain/error/failure/network_failure.dart';
+import 'package:cineville/domain/error/failure/no_data_failure.dart';
+import 'package:cineville/domain/error/failure/server_failure.dart';
 import 'package:cineville/domain/entity/video.dart';
-import 'package:cineville/domain/usecase/use_case.dart';
+import 'package:cineville/domain/usecase/use_case_with_params.dart';
 import 'package:cineville/presentation/bloc/bloc_state.dart';
 import 'package:cineville/presentation/bloc/event/load_movie_videos_event.dart';
 import 'package:cineville/presentation/bloc/state/empty_state.dart';
@@ -16,15 +16,18 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import '../../test_util/test_video_builder.dart';
+import '../../builder/domain_entity_builder.dart';
+import '../../builder/video_domain_entity_builder.dart';
 
-class MockUseCase extends Mock implements UseCase<Video> {}
+class MockUseCase extends Mock implements UseCaseWithParams<List<Video>, int> {}
 
 void main() {
-  UseCase<Video> mockUseCase;
+  DomainEntityBuilder videoDomainEntityBuilder;
+  UseCaseWithParams<List<Video>, int> mockUseCase;
   Bloc bloc;
 
   setUp(() {
+    videoDomainEntityBuilder = VideoDomainEntityBuilder();
     mockUseCase = MockUseCase();
     bloc = VideosBloc(mockUseCase);
   });
@@ -34,9 +37,8 @@ void main() {
   });
 
   group('when data is loaded successfully', () {
-    final List<Video> testVideos = TestVideoBuilder().buildMultiple();
-
     setUp(() {
+      final List<Video> testVideos = videoDomainEntityBuilder.buildList();
       when(mockUseCase.execute(any)).thenAnswer((_) async => Right(testVideos));
     });
 
@@ -51,12 +53,12 @@ void main() {
 
     test('should emit [Loading, Loaded] states', () async {
       final int testMovieId = 1;
-      final List<Video> testVideos = TestVideoBuilder().buildMultiple();
+      final List<Video> testVideos = videoDomainEntityBuilder.buildList();
 
       final List<BlocState> emittedStates = [
         EmptyState(),
         LoadingState(),
-        LoadedState<Video>(testVideos),
+        LoadedState<List<Video>>(testVideos),
       ];
       expectLater(bloc.state, emitsInOrder(emittedStates));
 

@@ -14,28 +14,28 @@ class DrawerView extends StatelessWidget {
         children: [
           _buildDrawerHeader(context),
           _buildDrawerItem(
+            key: Key('drawerItem-movies'),
             icon: Icons.movie,
             onTap: () {
               return Navigator.pushReplacementNamed(context, Routes.MOVIES);
             },
             text: TranslatableStrings.MOVIES,
           ),
-          _buildDrawerItem(
+          _buildDisabledDrawerItem(
             icon: Icons.live_tv,
-            onTap: () {
-              return Navigator.pushReplacementNamed(context, Routes.TV_SHOWS);
-            },
             text: TranslatableStrings.TV_SHOWS,
           ),
           Divider(),
           _buildDrawerItem(
+            key: Key('drawerItem-favorite'),
             icon: Icons.favorite,
-            onTap: () {},
+            onTap: () {
+              return Navigator.pushReplacementNamed(context, Routes.FAVORITES);
+            },
             text: TranslatableStrings.FAVORITE,
           ),
-          _buildDrawerItemWithImage(
+          _buildDisabledDrawerItemWithImage(
             image: Image.asset(AssetPath.WATCHED_CATEGORY),
-            onTap: () {},
             text: TranslatableStrings.WATCHED,
           ),
           Divider(),
@@ -68,8 +68,9 @@ class DrawerView extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawerItem({IconData icon, String text, GestureTapCallback onTap}) {
+  Widget _buildDrawerItem({Key key, IconData icon, String text, GestureTapCallback onTap}) {
     return ListTile(
+      key: key,
       onTap: onTap,
       title: Row(
         children: [
@@ -83,19 +84,40 @@ class DrawerView extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawerItemWithImage({Image image, String text, GestureTapCallback onTap}) {
+  Widget _buildDisabledDrawerItem({IconData icon, String text}) {
     return ListTile(
-      onTap: onTap,
+      title: Row(
+        children: [
+          Icon(
+            icon,
+            color: Colors.black.withOpacity(0.5),
+          ),
+          Parent(
+            style: ParentStyle()
+              ..opacity(0.5)
+              ..padding(left: 8.0),
+            child: Text(text),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisabledDrawerItemWithImage({Image image, String text}) {
+    return ListTile(
       title: Row(
         children: [
           Parent(
             style: ParentStyle()
               ..height(24.0)
+              ..opacity(0.5)
               ..width(24.0),
             child: image,
           ),
           Parent(
-            style: ParentStyle()..padding(left: 8.0),
+            style: ParentStyle()
+              ..opacity(0.5)
+              ..padding(left: 8.0),
             child: Text(text),
           ),
         ],

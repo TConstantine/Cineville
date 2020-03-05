@@ -1,11 +1,12 @@
-import 'package:cineville/data/datasource/local_data_source.dart';
+import 'package:cineville/data/datasource/database_data_source.dart';
 import 'package:cineville/data/datasource/remote_data_source.dart';
+import 'package:cineville/data/entity/data_entity.dart';
+import 'package:cineville/data/entity/data_entity_type.dart';
 import 'package:cineville/data/error/exception/server_exception.dart';
-import 'package:cineville/data/error/failure/network_failure.dart';
-import 'package:cineville/data/error/failure/no_data_failure.dart';
-import 'package:cineville/data/error/failure/server_failure.dart';
-import 'package:cineville/data/mapper/video_mapper.dart';
-import 'package:cineville/data/model/video_model.dart';
+import 'package:cineville/domain/error/failure/network_failure.dart';
+import 'package:cineville/domain/error/failure/no_data_failure.dart';
+import 'package:cineville/domain/error/failure/server_failure.dart';
+import 'package:cineville/data/mapper/video_domain_entity_mapper.dart';
 import 'package:cineville/data/network/network.dart';
 import 'package:cineville/data/repository/video_depository.dart';
 import 'package:cineville/domain/entity/video.dart';
@@ -15,131 +16,107 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import '../../test_util/test_video_builder.dart';
-import '../../test_util/test_video_model_builder.dart';
+import '../../builder/data_entity_builder.dart';
+import '../../builder/domain_entity_builder.dart';
+import '../../builder/video_domain_entity_builder.dart';
+import '../../builder/video_data_entity_builder.dart';
 
 class MockRemoteDataSource extends Mock implements RemoteDataSource {}
 
-class MockLocalDataSource extends Mock implements LocalDataSource {}
+class MockDatabaseDataSource extends Mock implements DatabaseDataSource {}
 
 class MockNetwork extends Mock implements Network {}
 
-class MockMapper extends Mock implements VideoMapper {}
+class MockVideoDomainEntityMapper extends Mock implements VideoDomainEntityMapper {}
 
 void main() {
+  DomainEntityBuilder videoDomainEntityBuilder;
+  DataEntityBuilder videoDataEntityBuilder;
   RemoteDataSource mockRemoteDataSource;
-  LocalDataSource mockLocalDataSource;
+  DatabaseDataSource mockDatabaseDataSource;
   Network mockNetwork;
-  VideoMapper mockMapper;
-  VideoRepository repository;
+  VideoDomainEntityMapper mockVideoDomainEntityMapper;
+  VideoRepository videoRepository;
 
   setUp(() {
+    videoDomainEntityBuilder = VideoDomainEntityBuilder();
+    videoDataEntityBuilder = VideoDataEntityBuilder();
     mockRemoteDataSource = MockRemoteDataSource();
-    mockLocalDataSource = MockLocalDataSource();
+    mockDatabaseDataSource = MockDatabaseDataSource();
     mockNetwork = MockNetwork();
-    mockMapper = MockMapper();
-    repository = VideoDepository(
+    mockVideoDomainEntityMapper = MockVideoDomainEntityMapper();
+    videoRepository = VideoDepository(
       mockRemoteDataSource,
-      mockLocalDataSource,
+      mockDatabaseDataSource,
       mockNetwork,
-      mockMapper,
+      mockVideoDomainEntityMapper,
     );
   });
 
-  final List<VideoModel> testVideoModels = TestVideoModelBuilder().buildMultiple();
-  final List<Video> testVideos = TestVideoBuilder().buildMultiple();
-  final int testMovieId = 5;
+  test('should return cached videos from database data source', () async {
+    final int movieId = 1;
+    final List<DataEntity> videoDataEntities = videoDataEntityBuilder.buildList();
+    final List<Video> videoDomainEntities = videoDomainEntityBuilder.buildList();
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any))
+        .thenAnswer((_) async => videoDataEntities);
+    when(mockVideoDomainEntityMapper.map(any)).thenReturn(videoDomainEntities);
 
-  test('should return cached videos', () async {
-    when(mockLocalDataSource.getMovieVideos(any)).thenAnswer((_) async => testVideoModels);
-    when(mockMapper.map(any)).thenReturn(testVideos);
+    final Either<Failure, List<Video>> result = await videoRepository.getMovieVideos(movieId);
 
-    final Either<Failure, List<Video>> result = await repository.getMovieVideos(testMovieId);
-
-    verifyZeroInteractions(mockNetwork);
+    verify(mockDatabaseDataSource.getMovieDataEntities(DataEntityType.VIDEO, movieId));
     verifyZeroInteractions(mockRemoteDataSource);
-    verifyInOrder([
-      mockLocalDataSource.getMovieVideos(testMovieId),
-      mockMapper.map(testVideoModels),
-    ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockMapper);
-    expect(result, equals(Right(testVideos)));
+    expect(result, equals(Right(videoDomainEntities)));
   });
 
-  test('should store videos locally', () async {
-    when(mockLocalDataSource.getMovieVideos(any)).thenAnswer((_) async => []);
+  test('should store videos locally when they are acquired from remote data source', () async {
+    final int movieId = 1;
+    final List<DataEntity> videoDataEntities = videoDataEntityBuilder.buildList();
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
     when(mockNetwork.isConnected()).thenAnswer((_) async => true);
-    when(mockRemoteDataSource.getMovieVideos(any)).thenAnswer((_) async => testVideoModels);
+    when(mockRemoteDataSource.getMovieDataEntities(any, any))
+        .thenAnswer((_) async => videoDataEntities);
 
-    await repository.getMovieVideos(testMovieId);
+    await videoRepository.getMovieVideos(movieId);
 
     verifyInOrder([
-      mockLocalDataSource.getMovieVideos(testMovieId),
-      mockNetwork.isConnected(),
-      mockRemoteDataSource.getMovieVideos(testMovieId),
-      mockLocalDataSource.storeMovieVideos(testMovieId, testVideoModels),
-      mockMapper.map(testVideoModels),
+      mockRemoteDataSource.getMovieDataEntities(DataEntityType.VIDEO, movieId),
+      mockDatabaseDataSource.storeMovieDataEntities(
+        DataEntityType.VIDEO,
+        movieId,
+        videoDataEntities,
+      ),
     ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockRemoteDataSource);
-    verifyNoMoreInteractions(mockNetwork);
-    verifyNoMoreInteractions(mockMapper);
   });
 
-  test('should return server failure', () async {
-    when(mockLocalDataSource.getMovieVideos(any)).thenAnswer((_) async => []);
+  test('should return server failure when server throws an exception', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
     when(mockNetwork.isConnected()).thenAnswer((_) async => true);
-    when(mockRemoteDataSource.getMovieVideos(any)).thenThrow(ServerException());
+    when(mockRemoteDataSource.getMovieDataEntities(any, any)).thenThrow(ServerException());
 
-    final Either<Failure, List<Video>> result = await repository.getMovieVideos(testMovieId);
+    final Either<Failure, List<Video>> result = await videoRepository.getMovieVideos(movieId);
 
-    verifyZeroInteractions(mockMapper);
-    verifyInOrder([
-      mockLocalDataSource.getMovieVideos(testMovieId),
-      mockNetwork.isConnected(),
-      mockRemoteDataSource.getMovieVideos(testMovieId),
-    ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockRemoteDataSource);
-    verifyNoMoreInteractions(mockNetwork);
-    verifyNoMoreInteractions(mockMapper);
     expect(result, equals(Left(ServerFailure())));
   });
 
-  test('should return network failure', () async {
-    when(mockLocalDataSource.getMovieVideos(any)).thenAnswer((_) async => []);
+  test('should return network failure when device is offline', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
     when(mockNetwork.isConnected()).thenAnswer((_) async => false);
 
-    final Either<Failure, List<Video>> result = await repository.getMovieVideos(testMovieId);
+    final Either<Failure, List<Video>> result = await videoRepository.getMovieVideos(movieId);
 
-    verifyZeroInteractions(mockMapper);
-    verifyZeroInteractions(mockRemoteDataSource);
-    verifyInOrder([
-      mockLocalDataSource.getMovieVideos(testMovieId),
-      mockNetwork.isConnected(),
-    ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockNetwork);
     expect(result, equals(Left(NetworkFailure())));
   });
 
-  test('should return no data failure', () async {
-    when(mockLocalDataSource.getMovieVideos(any)).thenAnswer((_) async => []);
+  test('should return no data failure when server responds with no results', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
     when(mockNetwork.isConnected()).thenAnswer((_) async => true);
-    when(mockRemoteDataSource.getMovieVideos(any)).thenAnswer((_) async => []);
+    when(mockRemoteDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
 
-    final Either<Failure, List<Video>> result = await repository.getMovieVideos(testMovieId);
+    final Either<Failure, List<Video>> result = await videoRepository.getMovieVideos(movieId);
 
-    verifyZeroInteractions(mockMapper);
-    verifyInOrder([
-      mockLocalDataSource.getMovieVideos(testMovieId),
-      mockNetwork.isConnected(),
-      mockRemoteDataSource.getMovieVideos(testMovieId),
-    ]);
-    verifyNoMoreInteractions(mockLocalDataSource);
-    verifyNoMoreInteractions(mockNetwork);
-    verifyNoMoreInteractions(mockRemoteDataSource);
     expect(result, equals(Left(NoDataFailure())));
   });
 }

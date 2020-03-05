@@ -1,66 +1,72 @@
 import 'package:cineville/data/database/dao/video_dao.dart';
 import 'package:cineville/data/database/database.dart';
-import 'package:cineville/data/model/video_model.dart';
+import 'package:cineville/data/entity/data_entity.dart';
+import 'package:cineville/data/entity/video_data_entity.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moor_ffi/moor_ffi.dart';
 
-import '../../../test_util/test_video_model_builder.dart';
+import '../../../builder/data_entity_builder.dart';
+import '../../../builder/video_data_entity_builder.dart';
 
 void main() {
+  DataEntityBuilder videoDataEntityBuilder;
   Database database;
-  VideoDao dao;
+  VideoDao videoDao;
 
   setUp(() {
+    videoDataEntityBuilder = VideoDataEntityBuilder();
     database = Database(VmDatabase.memory());
-    dao = VideoDao(database);
+    videoDao = VideoDao(database);
   });
 
   tearDown(() async {
     await database.close();
   });
 
-  final int testMovieId = 5;
-  final String testVideoId = '100';
-  final List<VideoModel> testVideoModelsWithDifferentIds =
-      TestVideoModelBuilder().withIds(['10', '11', '12']).buildMultiple();
-  final List<VideoModel> testVideoModels = TestVideoModelBuilder().buildMultiple();
-  final List<VideoModel> testVideoModelsWithSameId =
-      TestVideoModelBuilder().withIds([testVideoId, testVideoId, testVideoId]).buildMultiple();
+  test('should not return any videos when cache is empty', () async {
+    final int movieId = 1;
 
-  group('getMovieVideos', () {
-    test('should not return any videos', () async {
-      final List<VideoModel> videoModels = await dao.getMovieVideos(testMovieId);
+    final List<DataEntity> videoDataEntities = await videoDao.getMovieVideos(movieId);
 
-      expect(videoModels.isEmpty, true);
-    });
-
-    test('should return videos for a specific movie', () async {
-      await dao.storeMovieVideos(testMovieId, testVideoModels);
-      await dao.storeMovieVideos(testMovieId + 1, testVideoModelsWithSameId);
-      await dao.storeMovieVideos(testMovieId + 2, testVideoModels);
-
-      final List<VideoModel> videoModels = await dao.getMovieVideos(testMovieId + 1);
-
-      expect(videoModels.length, 1);
-      expect(videoModels.first.id, testVideoId);
-    });
+    expect(videoDataEntities.isEmpty, true);
   });
 
-  group('storeMovieVideos', () {
-    test('should store videos', () async {
-      await dao.storeMovieVideos(testMovieId, testVideoModelsWithDifferentIds);
+  test('should return videos when cache is not empty', () async {
+    final int movieId = 1;
+    final List<VideoDataEntity> videoDataEntityList =
+        List<VideoDataEntity>.from(videoDataEntityBuilder.buildList());
+    await videoDao.storeMovieVideos(movieId, videoDataEntityList);
 
-      final List<VideoModel> videoModels = await dao.getMovieVideos(testMovieId);
+    final List<VideoDataEntity> videoDataEntities = await videoDao.getMovieVideos(movieId);
 
-      expect(videoModels.length, testVideoModelsWithDifferentIds.length);
-    });
+    expect(videoDataEntities.length, videoDataEntityList.length);
+    expect(videoDataEntities.first.id, videoDataEntityList.first.id);
+    expect(videoDataEntities[1].id, videoDataEntityList[1].id);
+    expect(videoDataEntities.last.id, videoDataEntityList.last.id);
+  });
 
-    test('should not create new entries for videos that are already stored', () async {
-      await dao.storeMovieVideos(testMovieId, testVideoModels);
+  test('should store videos', () async {
+    final int movieId = 1;
+    final List<DataEntity> videoDataEntityList = videoDataEntityBuilder.buildList();
 
-      final List<VideoModel> videoModels = await dao.getMovieVideos(testMovieId);
+    await videoDao.storeMovieVideos(movieId, videoDataEntityList);
 
-      expect(videoModels.length, 1);
-    });
+    final List<DataEntity> videoDataEntities = await videoDao.getMovieVideos(movieId);
+    expect(videoDataEntities.length, videoDataEntityList.length);
+  });
+
+  test('should not create duplicate video entries', () async {
+    final int movieId = 1;
+    final DataEntity videoDataEntity = videoDataEntityBuilder.build();
+    final List<DataEntity> videoDataEntityList = [
+      videoDataEntity,
+      videoDataEntity,
+      videoDataEntity,
+    ];
+
+    await videoDao.storeMovieVideos(movieId, videoDataEntityList);
+
+    final List<DataEntity> videoDataEntities = await videoDao.getMovieVideos(movieId);
+    expect(videoDataEntities.length, 1);
   });
 }

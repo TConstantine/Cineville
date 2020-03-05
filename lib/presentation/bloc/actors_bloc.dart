@@ -1,10 +1,10 @@
 import 'package:bloc/bloc.dart';
-import 'package:cineville/data/error/failure/network_failure.dart';
-import 'package:cineville/data/error/failure/no_data_failure.dart';
-import 'package:cineville/data/error/failure/server_failure.dart';
+import 'package:cineville/domain/error/failure/network_failure.dart';
+import 'package:cineville/domain/error/failure/no_data_failure.dart';
+import 'package:cineville/domain/error/failure/server_failure.dart';
 import 'package:cineville/domain/entity/actor.dart';
 import 'package:cineville/domain/error/failure/failure.dart';
-import 'package:cineville/domain/usecase/use_case.dart';
+import 'package:cineville/domain/usecase/use_case_with_params.dart';
 import 'package:cineville/presentation/bloc/bloc_event.dart';
 import 'package:cineville/presentation/bloc/bloc_state.dart';
 import 'package:cineville/presentation/bloc/event/load_movie_actors_event.dart';
@@ -16,7 +16,7 @@ import 'package:cineville/resources/translatable_strings.dart';
 import 'package:dartz/dartz.dart';
 
 class ActorsBloc extends Bloc<BlocEvent, BlocState> {
-  final UseCase<Actor> getMovieActors;
+  final UseCaseWithParams<List<Actor>, int> getMovieActors;
 
   ActorsBloc(this.getMovieActors);
 
@@ -32,7 +32,7 @@ class ActorsBloc extends Bloc<BlocEvent, BlocState> {
     }
     yield useCaseResult.fold(
       (failure) => ErrorState(_mapFailureToMessage(failure)),
-      (entities) => LoadedState<Actor>(entities),
+      (entities) => LoadedState<List<Actor>>(entities),
     );
   }
 

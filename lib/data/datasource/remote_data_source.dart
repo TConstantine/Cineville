@@ -1,16 +1,7 @@
-import 'package:cineville/data/model/actor_model.dart';
-import 'package:cineville/data/model/genre_model.dart';
-import 'package:cineville/data/model/movie_model.dart';
-import 'package:cineville/data/model/review_model.dart';
-import 'package:cineville/data/model/video_model.dart';
+import 'package:cineville/data/entity/data_entity.dart';
 
 abstract class RemoteDataSource {
-  Future<List<GenreModel>> getMovieGenres();
-  Future<List<ActorModel>> getMovieActors(int movieId);
-  Future<List<ReviewModel>> getMovieReviews(int movieId);
-  Future<List<VideoModel>> getMovieVideos(int movieId);
-  Future<List<MovieModel>> getPopularMovies(int page);
-  Future<List<MovieModel>> getSimilarMovies(int movieId);
-  Future<List<MovieModel>> getTopRatedMovies(int page);
-  Future<List<MovieModel>> getUpcomingMovies(int page);
+  Future<List<DataEntity>> getMovieDataEntities(String dataEntityType, int movieId);
+  Future<List<DataEntity>> getMovieGenres();
+  Future<List<DataEntity>> getMovies(String movieCategory, int page);
 }

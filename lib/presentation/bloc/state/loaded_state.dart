@@ -1,10 +1,10 @@
 import 'package:cineville/presentation/bloc/bloc_state.dart';
 
 class LoadedState<E> extends BlocState {
-  final List<E> entities;
+  final E loadedData;
 
-  LoadedState(this.entities);
+  LoadedState(this.loadedData);
 
   @override
-  List<Object> get props => [entities];
+  List<Object> get props => [loadedData];
 }

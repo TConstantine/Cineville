@@ -1,122 +1,100 @@
-import 'package:cineville/data/datasource/local_data_source.dart';
-import 'package:cineville/data/datasource/local_date_source.dart';
+import 'package:cineville/data/datasource/database_data_source.dart';
+import 'package:cineville/data/datasource/preferences_data_source.dart';
 import 'package:cineville/data/datasource/remote_data_source.dart';
+import 'package:cineville/data/entity/data_entity.dart';
+import 'package:cineville/data/entity/data_entity_type.dart';
 import 'package:cineville/data/error/exception/server_exception.dart';
-import 'package:cineville/data/error/failure/network_failure.dart';
-import 'package:cineville/data/error/failure/no_data_failure.dart';
-import 'package:cineville/data/error/failure/server_failure.dart';
-import 'package:cineville/data/mapper/movie_mapper.dart';
-import 'package:cineville/data/model/genre_model.dart';
-import 'package:cineville/data/model/movie_model.dart';
+import 'package:cineville/domain/error/failure/network_failure.dart';
+import 'package:cineville/domain/error/failure/no_data_failure.dart';
+import 'package:cineville/domain/error/failure/server_failure.dart';
+import 'package:cineville/data/mapper/movie_domain_entity_mapper.dart';
+import 'package:cineville/data/entity/movie_data_entity.dart';
 import 'package:cineville/data/network/network.dart';
 import 'package:cineville/domain/entity/movie.dart';
 import 'package:cineville/domain/error/failure/failure.dart';
 import 'package:cineville/domain/repository/movie_repository.dart';
+import 'package:cineville/resources/movie_category.dart';
 import 'package:cineville/resources/preference_key.dart';
 import 'package:dartz/dartz.dart';
 
 class MovieDepository implements MovieRepository {
-  final RemoteDataSource remoteDataSource;
-  final LocalDataSource localDataSource;
-  final LocalDateSource localDateSource;
-  final Network network;
-  final MovieMapper mapper;
+  final RemoteDataSource _remoteDataSource;
+  final DatabaseDataSource _databaseDataSource;
+  final PreferencesDataSource _preferencesDataSource;
+  final Network _network;
+  final MovieDomainEntityMapper _movieDomainEntityMapper;
 
   MovieDepository(
-    this.remoteDataSource,
-    this.localDataSource,
-    this.localDateSource,
-    this.network,
-    this.mapper,
+    this._remoteDataSource,
+    this._databaseDataSource,
+    this._preferencesDataSource,
+    this._network,
+    this._movieDomainEntityMapper,
   );
 
   @override
-  Future<Either<Failure, List<Movie>>> getPopularMovies(int page) {
-    List<MovieModel> movieModels;
+  Future<Either<Failure, List<Movie>>> getMovies(String movieCategory, int page) {
+    List<DataEntity> movieDataEntities;
+    String preferenceKey;
+    if (movieCategory == MovieCategory.POPULAR) {
+      preferenceKey = PreferenceKey.POPULAR_MOVIES;
+    } else if (movieCategory == MovieCategory.TOP_RATED) {
+      preferenceKey = PreferenceKey.TOP_RATED_MOVIES;
+    } else {
+      preferenceKey = PreferenceKey.UPCOMING_MOVIES;
+    }
     return _getMovies(
-      PreferenceKey.POPULAR_MOVIES,
+      preferenceKey,
       () async {
-        movieModels = await localDataSource.getPopularMovies();
-        return movieModels;
+        movieDataEntities = await _databaseDataSource.getMovies(movieCategory);
+        return movieDataEntities;
       },
       () async {
-        movieModels = await remoteDataSource.getPopularMovies(page);
-        return movieModels;
+        movieDataEntities = await _remoteDataSource.getMovies(movieCategory, page);
+        return movieDataEntities;
       },
       () {
-        localDataSource.removePopularMovies();
-        localDataSource.storePopularMovies(movieModels);
-        return localDateSource.storeDate(PreferenceKey.POPULAR_MOVIES, _getCurrentDateInMillis());
+        _databaseDataSource.removeMovies(movieCategory);
+        _databaseDataSource.storeMovies(movieCategory, movieDataEntities);
+        return _preferencesDataSource.storeDate(preferenceKey, _getCurrentDateInMillis());
       },
     );
   }
 
   @override
   Future<Either<Failure, List<Movie>>> getSimilarMovies(int movieId) {
-    List<MovieModel> movieModels;
+    List<DataEntity> movieDataEntities;
     final String preferenceKey = '${PreferenceKey.SIMILAR_MOVIES}-$movieId';
     return _getMovies(
       preferenceKey,
       () async {
-        movieModels = await localDataSource.getSimilarMovies(movieId);
-        return movieModels;
+        movieDataEntities = await _databaseDataSource.getMovieDataEntities(
+          DataEntityType.SIMILAR_MOVIE,
+          movieId,
+        );
+        return movieDataEntities;
       },
       () async {
-        movieModels = await remoteDataSource.getSimilarMovies(movieId);
-        return movieModels;
+        movieDataEntities = await _remoteDataSource.getMovieDataEntities(
+          DataEntityType.SIMILAR_MOVIE,
+          movieId,
+        );
+        return movieDataEntities;
       },
       () {
-        localDataSource.removeSimilarMovies(movieId);
-        localDataSource.storeSimilarMovies(movieId, movieModels);
-        return localDateSource.storeDate(preferenceKey, _getCurrentDateInMillis());
-      },
-    );
-  }
-
-  @override
-  Future<Either<Failure, List<Movie>>> getTopRatedMovies(int page) {
-    List<MovieModel> movieModels;
-    return _getMovies(
-      PreferenceKey.TOP_RATED_MOVIES,
-      () async {
-        movieModels = await localDataSource.getTopRatedMovies();
-        return movieModels;
-      },
-      () async {
-        movieModels = await remoteDataSource.getTopRatedMovies(page);
-        return movieModels;
-      },
-      () {
-        localDataSource.removeTopRatedMovies();
-        localDataSource.storeTopRatedMovies(movieModels);
-        return localDateSource.storeDate(PreferenceKey.TOP_RATED_MOVIES, _getCurrentDateInMillis());
-      },
-    );
-  }
-
-  @override
-  Future<Either<Failure, List<Movie>>> getUpcomingMovies(int page) {
-    List<MovieModel> movieModels;
-    return _getMovies(
-      PreferenceKey.UPCOMING_MOVIES,
-      () async {
-        movieModels = await localDataSource.getUpcomingMovies();
-        return movieModels;
-      },
-      () async {
-        movieModels = await remoteDataSource.getUpcomingMovies(page);
-        return movieModels;
-      },
-      () {
-        localDataSource.removeUpcomingMovies();
-        localDataSource.storeUpcomingMovies(movieModels);
-        return localDateSource.storeDate(PreferenceKey.UPCOMING_MOVIES, _getCurrentDateInMillis());
+        _databaseDataSource.removeSimilarMovies(movieId);
+        _databaseDataSource.storeMovieDataEntities(
+          DataEntityType.SIMILAR_MOVIE,
+          movieId,
+          movieDataEntities,
+        );
+        return _preferencesDataSource.storeDate(preferenceKey, _getCurrentDateInMillis());
       },
     );
   }
 
   Future<bool> _isCacheDateOld(String key) async {
-    final int cachedDateInMillis = await localDateSource.getDate(key);
+    final int cachedDateInMillis = await _preferencesDataSource.getDate(key);
     final int dayInMillis = 86400000;
     return cachedDateInMillis == 0 || _getCurrentDateInMillis() - cachedDateInMillis > dayInMillis;
   }
@@ -127,50 +105,53 @@ class MovieDepository implements MovieRepository {
 
   Future<Either<Failure, List<Movie>>> _getMovies(
     String preferenceKey,
-    Future<List<MovieModel>> Function() getLocalMovieModels,
-    Future<List<MovieModel>> Function() getRemoteMovieModels,
+    Future<List<DataEntity>> Function() getMovieDataEntitiesLocally,
+    Future<List<DataEntity>> Function() getMovieDataEntitiesRemotely,
     Future Function() storeMoviesLocally,
   ) async {
-    List<MovieModel> movieModels = [];
+    List<DataEntity> movieDataEntities = [];
     if (!await _isCacheDateOld(preferenceKey)) {
-      movieModels = await getLocalMovieModels();
-    } else if (await network.isConnected()) {
+      movieDataEntities = await getMovieDataEntitiesLocally();
+    } else if (await _network.isConnected()) {
       try {
-        movieModels = await getRemoteMovieModels();
+        movieDataEntities = await getMovieDataEntitiesRemotely();
       } on ServerException {
         return Left(ServerFailure());
       }
-      if (movieModels.isEmpty) {
+      if (movieDataEntities.isEmpty) {
         return Left(NoDataFailure());
       }
       await storeMoviesLocally();
     } else {
       return Left(NetworkFailure());
     }
-    return (await _getGenreModels(movieModels)).fold((failure) {
+    return (await _getGenreDataEntities(movieDataEntities)).fold((failure) {
       return Left(failure);
-    }, (genreModels) {
-      return Right(mapper.map(movieModels, genreModels));
+    }, (genreDataEntities) {
+      return Right(_movieDomainEntityMapper.map(movieDataEntities, genreDataEntities));
     });
   }
 
-  Future<Either<Failure, List<GenreModel>>> _getGenreModels(List<MovieModel> models) async {
-    List<GenreModel> genreModels = [];
+  Future<Either<Failure, List<DataEntity>>> _getGenreDataEntities(
+      List<DataEntity> movieDataEntities) async {
+    List<DataEntity> genreDataEntities = [];
     final List<int> genreIds = [];
-    models.forEach((model) => genreIds.addAll(model.genreIds));
-    genreModels = await localDataSource.getMovieGenres(genreIds.toSet().toList());
-    if (genreModels.isEmpty) {
-      if (await network.isConnected()) {
+    List<MovieDataEntity>.from(movieDataEntities).forEach((movieDataEntity) {
+      genreIds.addAll(movieDataEntity.genreIds);
+    });
+    genreDataEntities = await _databaseDataSource.getMovieGenres(genreIds.toSet().toList());
+    if (genreDataEntities.isEmpty) {
+      if (await _network.isConnected()) {
         try {
-          genreModels = await remoteDataSource.getMovieGenres();
+          genreDataEntities = await _remoteDataSource.getMovieGenres();
         } on ServerException {
           return Left(ServerFailure());
         }
-        localDataSource.storeMovieGenres(genreModels);
+        _databaseDataSource.storeMovieGenres(genreDataEntities);
       } else {
         return Left(NetworkFailure());
       }
     }
-    return Right(genreModels);
+    return Right(genreDataEntities);
   }
 }

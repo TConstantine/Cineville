@@ -2,12 +2,18 @@ import 'package:cineville/presentation/widget/movie_rating_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../test_util/test_movie_builder.dart';
+import '../../builder/domain_entity_builder.dart';
+import '../../builder/movie_domain_entity_builder.dart';
 
 void main() {
-  final String testRating = TestMovieBuilder().build().rating;
+  DomainEntityBuilder movieDomainEntityBuilder;
+
+  setUp(() {
+    movieDomainEntityBuilder = MovieDomainEntityBuilder();
+  });
 
   testWidgets('should display rating', (tester) async {
+    final String testRating = movieDomainEntityBuilder.build().rating;
     await tester.pumpWidget(MaterialApp(
       home: MovieRatingView(
         rating: testRating,

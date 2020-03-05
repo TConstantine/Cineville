@@ -79,11 +79,13 @@ class MovieSummaryView extends StatelessWidget {
   }
 
   Widget _buildTitle() {
-    return Txt(
+    return Text(
       '${movie.title} ${movie.releaseYear}',
-      style: TxtStyle()
-        ..bold()
-        ..fontSize(15.0),
+      key: Key('movieTitle-${movie.id}'),
+      style: TextStyle(
+        fontSize: 15.0,
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 

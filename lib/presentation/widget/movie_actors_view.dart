@@ -33,8 +33,8 @@ class _MovieActorsViewState extends State<MovieActorsView> {
       builder: (context, state) {
         if (state is LoadingState) {
           return _buildLoadingState();
-        } else if (state is LoadedState<Actor>) {
-          return _buildLoadedState(state.entities);
+        } else if (state is LoadedState<List<Actor>>) {
+          return _buildLoadedState(state.loadedData);
         } else if (state is ErrorState) {
           return _buildErrorState(state.message);
         } else {

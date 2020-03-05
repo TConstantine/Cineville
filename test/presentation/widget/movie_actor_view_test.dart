@@ -4,10 +4,10 @@ import 'package:cineville/presentation/widget/movie_actor_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../test_util/test_actor_builder.dart';
+import '../../builder/actor_domain_entity_builder.dart';
 
 void main() {
-  final Actor testActor = TestActorBuilder().build();
+  final Actor testActor = ActorDomainEntityBuilder().build();
 
   Future _pumpMovieActorView(WidgetTester tester) async {
     await tester.pumpWidget(MaterialApp(

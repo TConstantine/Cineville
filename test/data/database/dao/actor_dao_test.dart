@@ -1,83 +1,83 @@
 import 'package:cineville/data/database/dao/actor_dao.dart';
 import 'package:cineville/data/database/database.dart';
-import 'package:cineville/data/model/actor_model.dart';
+import 'package:cineville/data/entity/actor_data_entity.dart';
+import 'package:cineville/data/entity/data_entity.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moor_ffi/moor_ffi.dart';
 
-import '../../../test_util/test_actor_model_builder.dart';
+import '../../../builder/actor_data_entity_builder.dart';
+import '../../../builder/data_entity_builder.dart';
 
 void main() {
+  DataEntityBuilder actorDataEntityBuilder;
   Database database;
-  ActorDao dao;
+  ActorDao actorDao;
 
   setUp(() {
+    actorDataEntityBuilder = ActorDataEntityBuilder();
     database = Database(VmDatabase.memory());
-    dao = ActorDao(database);
+    actorDao = ActorDao(database);
   });
 
   tearDown(() async {
     await database.close();
   });
 
-  final int testMovieId = 5;
-  final int testActorId = 10;
-  final List<int> testDifferentIds = [15, 16, 17];
-  final List<int> testDifferentDisplayOrders = [13, 17, 9];
-  final List<ActorModel> testActorModelsWithDifferentIds =
-      TestActorModelBuilder().withIds(testDifferentIds).buildMultiple();
-  final List<ActorModel> testActorModelsWithDifferentIdsAndDisplayOrder = TestActorModelBuilder()
-      .withIds(testDifferentIds)
-      .withDisplayOrders(testDifferentDisplayOrders)
-      .buildMultiple();
-  final List<ActorModel> testActorModels = TestActorModelBuilder().buildMultiple();
-  final List<ActorModel> testActorModelsWithSameIds =
-      TestActorModelBuilder().withIds([testActorId, testActorId, testActorId]).buildMultiple();
+  test('should not return any actors when cache is empty', () async {
+    final int movieId = 1;
 
-  group('getMovieActors', () {
-    test('should not return any actors', () async {
-      final List<ActorModel> actorModels = await dao.getMovieActors(testMovieId);
+    final List<DataEntity> actorDataEntities = await actorDao.getMovieActors(movieId);
 
-      expect(actorModels.isEmpty, true);
-    });
-
-    test('should return actors for a specific movie', () async {
-      await dao.storeMovieActors(testMovieId, testActorModels);
-      await dao.storeMovieActors(testMovieId + 1, testActorModelsWithSameIds);
-      await dao.storeMovieActors(testMovieId + 2, testActorModels);
-
-      final List<ActorModel> actorModels = await dao.getMovieActors(testMovieId + 1);
-
-      expect(actorModels.length, 1);
-      expect(actorModels.first.id, testActorId);
-    });
-
-    test('should return actors ordered by display order', () async {
-      await dao.storeMovieActors(testMovieId, testActorModelsWithDifferentIdsAndDisplayOrder);
-
-      final List<ActorModel> actorModels = await dao.getMovieActors(testMovieId);
-
-      expect(actorModels.length, 3);
-      expect(actorModels[0].displayOrder, 9);
-      expect(actorModels[1].displayOrder, 13);
-      expect(actorModels[2].displayOrder, 17);
-    });
+    expect(actorDataEntities.isEmpty, true);
   });
 
-  group('storeMovieActors', () {
-    test('should store actors', () async {
-      await dao.storeMovieActors(testMovieId, testActorModelsWithDifferentIds);
+  test('should return actors when cache is not empty', () async {
+    final int movieId = 1;
+    final ActorDataEntity actorDataEntity = actorDataEntityBuilder.build();
+    await actorDao.storeMovieActors(movieId, [actorDataEntity, actorDataEntity, actorDataEntity]);
 
-      final List<ActorModel> actorModels = await dao.getMovieActors(testMovieId);
+    final List<ActorDataEntity> actorDataEntities = await actorDao.getMovieActors(movieId);
 
-      expect(actorModels.length, testActorModelsWithDifferentIds.length);
-    });
+    expect(actorDataEntities.length, 1);
+    expect(actorDataEntities.first.id, actorDataEntity.id);
+  });
 
-    test('should not create new entries for actors that are already stored', () async {
-      await dao.storeMovieActors(testMovieId, testActorModels);
+  test('should return actors ordered by display order', () async {
+    final int movieId = 1;
+    final List<ActorDataEntity> actorDataEntityList =
+        List<ActorDataEntity>.from(actorDataEntityBuilder.buildList());
+    await actorDao.storeMovieActors(movieId, actorDataEntityList);
 
-      final List<ActorModel> actorModels = await dao.getMovieActors(testMovieId);
+    final List<ActorDataEntity> actorDataEntities = await actorDao.getMovieActors(movieId);
 
-      expect(actorModels.length, 1);
-    });
+    expect(actorDataEntities.length, 3);
+    expect(actorDataEntities.first.displayOrder, actorDataEntityList.first.displayOrder);
+    expect(actorDataEntities[1].displayOrder, actorDataEntityList[1].displayOrder);
+    expect(actorDataEntities.last.displayOrder, actorDataEntityList.last.displayOrder);
+  });
+
+  test('should store actors', () async {
+    final int movieId = 1;
+    final List<DataEntity> actorDataEntityList = actorDataEntityBuilder.buildList();
+    await actorDao.storeMovieActors(movieId, actorDataEntityList);
+
+    final List<DataEntity> actorDataEntities = await actorDao.getMovieActors(movieId);
+
+    expect(actorDataEntities.length, actorDataEntityList.length);
+  });
+
+  test('should not create duplicate actor entries', () async {
+    final int movieId = 1;
+    final DataEntity actorDataEntity = actorDataEntityBuilder.build();
+    final List<DataEntity> actorDataEntityList = [
+      actorDataEntity,
+      actorDataEntity,
+      actorDataEntity
+    ];
+
+    await actorDao.storeMovieActors(movieId, actorDataEntityList);
+
+    final List<DataEntity> actorDataEntities = await actorDao.getMovieActors(movieId);
+    expect(actorDataEntities.length, 1);
   });
 }

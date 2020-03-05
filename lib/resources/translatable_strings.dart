@@ -1,4 +1,5 @@
 class TranslatableStrings {
+  static const String ADDED_TO_FAVORITES = 'Added to favorites';
   static const String APP_NAME = 'Cineville';
   static const String ATTRIBUTIONS = 'Attributions';
   static const String CATEGORY_ACTORS = 'Actors';
@@ -16,10 +17,13 @@ class TranslatableStrings {
       'Loading failed. Please check your internet connection.';
   static const String NO_ACTORS = 'There are no actors to display.';
   static const String NO_DATA_FAILURE_MESSAGE = 'No data';
+  static const String NO_FAVORITE_MOVIES =
+      'You don\'t seem to have added any movies that you liked';
   static const String NO_MOVIES = 'There are no movies to display.';
   static const String NO_REVIEWS = 'There are no reviews to display.';
   static const String NO_SIMILAR_MOVIES = 'Similar Movies N/A';
   static const String NO_VIDEOS = 'Videos N/A';
+  static const String REMOVED_FROM_FAVORITES = 'Removed from favorites';
   static const String SERVER_FAILURE_MESSAGE =
       'Loading failed. Server is currently down, please try again later.';
   static const String TMDB_ATTRIBUTION_MESSAGE =

@@ -1,45 +1,31 @@
-import 'dart:io';
-
 import 'package:cineville/di/injector.dart';
 import 'package:cineville/domain/entity/movie.dart';
-import 'package:cineville/domain/repository/movie_repository.dart';
 import 'package:cineville/presentation/widget/movie_backdrop_view.dart';
 import 'package:cineville/presentation/widget/movie_genres_view.dart';
 import 'package:cineville/presentation/widget/movie_info_view.dart';
 import 'package:cineville/presentation/widget/movie_poster_view.dart';
+import 'package:cineville/presentation/widget/movie_title_view.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../test_util/test_movie_builder.dart';
-
-class MockRepository extends Mock implements MovieRepository {}
+import '../../builder/domain_entity_builder.dart';
+import '../../builder/movie_domain_entity_builder.dart';
+import '../../builder/test_widget_builder.dart';
 
 void main() {
-  MovieRepository mockRepository;
-
-  setUpAll(() async {
-    final Directory directory = await Directory.systemTemp.createTemp();
-    const MethodChannel('plugins.flutter.io/path_provider')
-        .setMockMethodCallHandler((MethodCall methodCall) async {
-      if (methodCall.method == 'getTemporaryDirectory') {
-        return directory.path;
-      }
-      return null;
-    });
-    const MethodChannel('com.tekartik.sqflite')
-        .setMockMethodCallHandler((MethodCall methodCall) async {
-      if (methodCall.method == 'getDatabasesPath') {
-        return directory.path;
-      }
-      return null;
-    });
-  });
+  DomainEntityBuilder movieDomainEntityBuilder;
+  Movie testMovie;
+  Injector dependencyInjector;
+  Widget widget;
 
   setUp(() {
-    mockRepository = MockRepository();
+    movieDomainEntityBuilder = MovieDomainEntityBuilder();
+    testMovie = movieDomainEntityBuilder.build();
+    dependencyInjector = Injector();
+    widget = MovieInfoView(
+      movie: testMovie,
+    );
     SharedPreferences.setMockInitialValues({});
   });
 
@@ -47,44 +33,32 @@ void main() {
     injector.reset();
   });
 
-  Future _pumpMovieInfoView(WidgetTester tester) async {
-    final Movie testMovie = TestMovieBuilder().build();
-    await tester.runAsync(() async {
-      await Injector().withMovieRepository(mockRepository).inject();
-      await tester.pumpWidget(MaterialApp(
-        home: MovieInfoView(movie: testMovie),
-      ));
-    });
-  }
-
-  testWidgets('should display backdrop', (tester) async {
-    await _pumpMovieInfoView(tester);
+  testWidgets('should display movie backdrop', (tester) async {
+    await TestWidgetBuilder.runAsync(dependencyInjector, widget, tester);
 
     expect(find.byType(MovieBackdropView), findsOneWidget);
   });
 
-  testWidgets('should display poster', (tester) async {
-    await _pumpMovieInfoView(tester);
+  testWidgets('should display movie poster', (tester) async {
+    await TestWidgetBuilder.runAsync(dependencyInjector, widget, tester);
 
     expect(find.byType(MoviePosterView), findsOneWidget);
   });
 
-  testWidgets('should display title', (tester) async {
-    final Movie testMovie = TestMovieBuilder().build();
-    await _pumpMovieInfoView(tester);
+  testWidgets('should display movie title', (tester) async {
+    await TestWidgetBuilder.runAsync(dependencyInjector, widget, tester);
 
-    expect(find.text('${testMovie.title} ${testMovie.releaseYear}'), findsOneWidget);
+    expect(find.byType(MovieTitleView), findsOneWidget);
   });
 
-  testWidgets('should display genres', (tester) async {
-    await _pumpMovieInfoView(tester);
+  testWidgets('should display movie genres', (tester) async {
+    await TestWidgetBuilder.runAsync(dependencyInjector, widget, tester);
 
     expect(find.byType(MovieGenresView), findsOneWidget);
   });
 
-  testWidgets('should display plot synopsis', (tester) async {
-    final Movie testMovie = TestMovieBuilder().build();
-    await _pumpMovieInfoView(tester);
+  testWidgets('should display movie plot synopsis', (tester) async {
+    await TestWidgetBuilder.runAsync(dependencyInjector, widget, tester);
 
     expect(find.text(testMovie.plotSynopsis), findsOneWidget);
   });

@@ -1,84 +1,90 @@
 import 'package:cineville/data/database/dao/genre_dao.dart';
 import 'package:cineville/data/database/database.dart';
-import 'package:cineville/data/model/genre_model.dart';
+import 'package:cineville/data/entity/data_entity.dart';
+import 'package:cineville/data/entity/genre_data_entity.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moor_ffi/moor_ffi.dart';
 
-import '../../../test_util/test_genre_model_builder.dart';
+import '../../../builder/data_entity_builder.dart';
+import '../../../builder/genre_data_entity_builder.dart';
+import '../../../builder/genre_id_builder.dart';
 
 void main() {
+  DataEntityBuilder genreDataEntityBuilder;
   Database database;
-  GenreDao dao;
+  GenreDao genreDao;
 
   setUp(() {
+    genreDataEntityBuilder = GenreDataEntityBuilder();
     database = Database(VmDatabase.memory());
-    dao = GenreDao(database);
+    genreDao = GenreDao(database);
   });
 
   tearDown(() async {
     await database.close();
   });
 
-  group('getMovieGenres', () {
-    test('should not return any genres', () async {
-      final List<int> testGenreIds = [1, 2, 3];
+  test('should not return any genres when cache is empty', () async {
+    final List<int> genreIds = GenreIdBuilder.buildList();
 
-      final List<GenreModel> genreModels = await dao.getMovieGenres(testGenreIds);
+    final List<DataEntity> genreDataEntities = await genreDao.getMovieGenres(genreIds);
 
-      expect(genreModels.isEmpty, true);
-    });
-
-    test('should return genres for the specified ids', () async {
-      final List<int> testGenreIds = [1, 3];
-      final List<GenreModel> testGenreModels =
-          TestGenreModelBuilder().withIds([1, 2, 3]).buildMultiple();
-
-      await dao.storeMovieGenres(testGenreModels);
-
-      final List<GenreModel> genreModels = await dao.getMovieGenres(testGenreIds);
-
-      expect(genreModels.length, 2);
-      expect(genreModels[0].id, 1);
-      expect(genreModels[1].id, 3);
-    });
-
-    test('should return genres ordered by name', () async {
-      final List<int> testGenreIds = [1, 2, 3];
-      final List<String> testGenreNames = ['Drama', 'Fantasy', 'Comedy'];
-      final List<GenreModel> testGenreModels =
-          TestGenreModelBuilder().withIds(testGenreIds).withNames(testGenreNames).buildMultiple();
-      await dao.storeMovieGenres(testGenreModels);
-
-      final List<GenreModel> genreModels = await dao.getMovieGenres(testGenreIds);
-
-      expect(genreModels.length, 3);
-      expect(genreModels[0].name, 'Comedy');
-      expect(genreModels[1].name, 'Drama');
-      expect(genreModels[2].name, 'Fantasy');
-    });
+    expect(genreDataEntities.isEmpty, true);
   });
 
-  group('storeMovieGenres', () {
-    test('should store genres', () async {
-      final List<int> testGenreIds = [1, 2, 3];
-      final List<GenreModel> testGenreModels =
-          TestGenreModelBuilder().withIds(testGenreIds).buildMultiple();
+  test('should return genres when cache is not empty', () async {
+    final List<int> genreIds = GenreIdBuilder.buildList();
+    final List<GenreDataEntity> genreDataEntityList =
+        List<GenreDataEntity>.from(genreDataEntityBuilder.buildList());
+    await genreDao.storeMovieGenres(genreDataEntityList);
 
-      await dao.storeMovieGenres(testGenreModels);
+    final List<GenreDataEntity> genreDataEntities = await genreDao.getMovieGenres(genreIds);
 
-      final List<GenreModel> genreModels = await dao.getMovieGenres(testGenreIds);
-      expect(genreModels.length, testGenreModels.length);
-    });
+    expect(genreDataEntities.length, genreDataEntityList.length);
+    expect(genreDataEntities.first.id, genreDataEntityList.first.id);
+    expect(genreDataEntities[1].id, genreDataEntityList[1].id);
+    expect(genreDataEntities[2].id, genreDataEntityList[2].id);
+    expect(genreDataEntities[3].id, genreDataEntityList[3].id);
+    expect(genreDataEntities.last.id, genreDataEntityList.last.id);
+  });
 
-    test('should not create new entries for genres that are already stored', () async {
-      final List<int> testGenreIds = [1, 2, 3];
-      final List<GenreModel> testGenreModels =
-          TestGenreModelBuilder().withIds([1, 1, 1]).buildMultiple();
+  test('should return genres ordered by name', () async {
+    final List<int> genreIds = GenreIdBuilder.buildList();
+    final List<DataEntity> genreDataEntityList = genreDataEntityBuilder.buildList();
+    await genreDao.storeMovieGenres(genreDataEntityList);
 
-      await dao.storeMovieGenres(testGenreModels);
+    final List<GenreDataEntity> genreDataEntities = await genreDao.getMovieGenres(genreIds);
 
-      final List<GenreModel> genreModels = await dao.getMovieGenres(testGenreIds);
-      expect(genreModels.length, 1);
-    });
+    expect(genreDataEntities.length, genreDataEntityList.length);
+    expect(genreDataEntities.first.name, 'Action');
+    expect(genreDataEntities[1].name, 'Adventure');
+    expect(genreDataEntities[2].name, 'Comedy');
+    expect(genreDataEntities[3].name, 'Crime');
+    expect(genreDataEntities.last.name, 'Drama');
+  });
+
+  test('should store genres', () async {
+    final List<int> genreIds = GenreIdBuilder.buildList();
+    final List<DataEntity> genreDataEntityList = genreDataEntityBuilder.buildList();
+
+    await genreDao.storeMovieGenres(genreDataEntityList);
+
+    final List<DataEntity> genreDataEntities = await genreDao.getMovieGenres(genreIds);
+    expect(genreDataEntities.length, genreDataEntityList.length);
+  });
+
+  test('should not create duplicate genre entries', () async {
+    final List<int> genreIds = GenreIdBuilder.buildList();
+    final DataEntity genreDataEntity = genreDataEntityBuilder.build();
+    final List<DataEntity> genreDataEntityList = [
+      genreDataEntity,
+      genreDataEntity,
+      genreDataEntity
+    ];
+
+    await genreDao.storeMovieGenres(genreDataEntityList);
+
+    final List<DataEntity> genreDataEntities = await genreDao.getMovieGenres(genreIds);
+    expect(genreDataEntities.length, 1);
   });
 }

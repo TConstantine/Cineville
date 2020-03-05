@@ -2,7 +2,8 @@ import 'package:cineville/data/database/database.dart';
 import 'package:cineville/data/database/table/movie_entries.dart';
 import 'package:cineville/data/database/table/movie_tag_entries.dart';
 import 'package:cineville/data/database/table/similar_movie_entries.dart';
-import 'package:cineville/data/model/movie_model.dart';
+import 'package:cineville/data/entity/data_entity.dart';
+import 'package:cineville/data/entity/movie_data_entity.dart';
 import 'package:cineville/resources/movie_category.dart';
 import 'package:moor_flutter/moor_flutter.dart';
 
@@ -15,158 +16,149 @@ class MovieDao extends DatabaseAccessor<Database> with _$MovieDaoMixin {
 
   MovieDao(this.database) : super(database);
 
-  Future<List<MovieModel>> getPopularMovies() {
-    return ((select(movieEntries)
-              ..orderBy([
-                (table) => OrderingTerm(
-                      expression: table.popularity,
-                      mode: OrderingMode.desc,
-                    )
-              ])
-              ..limit(_MAX_LIMIT))
-            .join(
-      [leftOuterJoin(movieTagEntries, movieTagEntries.movieId.equalsExp(movieEntries.id))],
-    )..where(movieTagEntries.name.equals(MovieCategory.POPULAR)))
-        .map((rows) => rows.readTable(movieEntries))
-        .map((movieEntry) => _buildMovieModel(movieEntry))
-        .get();
+  Future markMovieAsFavorite(int movieId) {
+    return into(movieTagEntries).insert(
+      MovieTagEntry(
+        movieId: movieId,
+        name: MovieCategory.FAVORITE,
+      ),
+      orReplace: true,
+    );
   }
 
-  Future<List<MovieModel>> getSimilarMovies(int movieId) async {
+  Future<List<DataEntity>> getSimilarMovies(int movieId) async {
     final List<int> similarMovieIds = await (select(similarMovieEntries)
           ..where((table) => table.movieId.equals(movieId)))
         .map((entry) => entry.similarMovieId)
         .get();
     return (select(movieEntries)
           ..limit(_MAX_LIMIT)
-          ..where((table) => isIn(table.id, similarMovieIds)))
-        .map((movieEntry) => _buildMovieModel(movieEntry))
+          ..where((table) => table.id.isIn(similarMovieIds)))
+        .map((movieEntry) => _buildMovieDataEntity(movieEntry))
         .get();
   }
 
-  Future<List<MovieModel>> getTopRatedMovies() {
-    return ((select(movieEntries)
-              ..orderBy([
-                (table) => OrderingTerm(
-                      expression: table.rating,
-                      mode: OrderingMode.desc,
-                    )
-              ])
-              ..limit(_MAX_LIMIT))
-            .join(
-      [leftOuterJoin(movieTagEntries, movieTagEntries.movieId.equalsExp(movieEntries.id))],
-    )..where(movieTagEntries.name.equals(MovieCategory.TOP_RATED)))
-        .map((rows) => rows.readTable(movieEntries))
-        .map((movieEntry) => _buildMovieModel(movieEntry))
-        .get();
+  Future<List<DataEntity>> getMovies(String movieCategory) {
+    Expression expression;
+    if (movieCategory == MovieCategory.FAVORITE) {
+      return _getFavoriteMovies();
+    } else if (movieCategory == MovieCategory.UPCOMING) {
+      expression = $MovieEntriesTable(database).releaseDate;
+    } else if (movieCategory == MovieCategory.TOP_RATED) {
+      expression = $MovieEntriesTable(database).rating;
+    } else {
+      expression = $MovieEntriesTable(database).popularity;
+    }
+    return _getMovies(expression, movieCategory);
   }
 
-  Future<List<MovieModel>> getUpcomingMovies() {
-    return ((select(movieEntries)
-              ..orderBy([
-                (table) => OrderingTerm(
-                      expression: table.releaseDate,
-                      mode: OrderingMode.desc,
-                    )
-              ])
-              ..limit(_MAX_LIMIT))
-            .join(
-      [leftOuterJoin(movieTagEntries, movieTagEntries.movieId.equalsExp(movieEntries.id))],
-    )..where(movieTagEntries.name.equals(MovieCategory.UPCOMING)))
-        .map((rows) => rows.readTable(movieEntries))
-        .map((movieEntry) => _buildMovieModel(movieEntry))
+  Future<bool> isMovieMarkedAsFavorite(int movieId) async {
+    final List<MovieTagEntry> favoriteMovieList = await (select(movieTagEntries)
+          ..where((table) => table.name.equals(MovieCategory.FAVORITE))
+          ..where((table) => table.movieId.equals(movieId)))
         .get();
+    return favoriteMovieList.isNotEmpty;
   }
 
-  Future removePopularMovies() {
-    return (delete(movieTagEntries)..where((table) => table.name.equals(MovieCategory.POPULAR)))
-        .go();
+  Future<int> removeMovieFromFavorites(int movieId) {
+    return delete(movieTagEntries)
+        .delete(MovieTagEntry(movieId: movieId, name: MovieCategory.FAVORITE));
+  }
+
+  Future removeMovies(String movieCategory) {
+    return (delete(movieTagEntries)..where((table) => table.name.equals(movieCategory))).go();
   }
 
   Future removeSimilarMovies(int movieId) {
     return (delete(similarMovieEntries)..where((table) => table.movieId.equals(movieId))).go();
   }
 
-  Future removeTopRatedMovies() {
-    return (delete(movieTagEntries)..where((table) => table.name.equals(MovieCategory.TOP_RATED)))
-        .go();
-  }
-
-  Future removeUpcomingMovies() {
-    return (delete(movieTagEntries)..where((table) => table.name.equals(MovieCategory.UPCOMING)))
-        .go();
-  }
-
-  Future storePopularMovies(List<MovieModel> movieModels) {
+  Future storeMovies(String movieCategory, List<DataEntity> movieDataEntities) {
     return transaction(() async {
-      await _storeMovies(movieModels);
-      await _storeMovieTags(movieModels, MovieCategory.POPULAR);
+      await _insertMovies(movieDataEntities);
+      await _insertMovieTags(movieCategory, movieDataEntities);
     });
   }
 
-  Future storeSimilarMovies(int movieId, List<MovieModel> movieModels) {
+  Future storeSimilarMovies(int movieId, List<DataEntity> movieDataEntities) {
     return transaction(() async {
-      await _storeMovies(movieModels);
-      await _storeSimilarMovies(movieId, movieModels);
+      await _insertMovies(movieDataEntities);
+      await _storeSimilarMovies(movieId, movieDataEntities);
     });
   }
 
-  Future storeTopRatedMovies(List<MovieModel> movieModels) {
-    return transaction(() async {
-      await _storeMovies(movieModels);
-      await _storeMovieTags(movieModels, MovieCategory.TOP_RATED);
+  Future<List<DataEntity>> _getFavoriteMovies() {
+    return (select(movieEntries).join(
+      [leftOuterJoin(movieTagEntries, movieTagEntries.movieId.equalsExp(movieEntries.id))],
+    )..where(movieTagEntries.name.equals(MovieCategory.FAVORITE)))
+        .map((rows) => rows.readTable(movieEntries))
+        .map((movieEntry) => _buildMovieDataEntity(movieEntry))
+        .get();
+  }
+
+  Future<List<DataEntity>> _getMovies(Expression expression, String movieCategory) {
+    return ((select(movieEntries)
+              ..orderBy([(table) => OrderingTerm.desc(expression)])
+              ..limit(_MAX_LIMIT))
+            .join(
+      [leftOuterJoin(movieTagEntries, movieTagEntries.movieId.equalsExp(movieEntries.id))],
+    )..where(movieTagEntries.name.equals(movieCategory)))
+        .map((rows) => rows.readTable(movieEntries))
+        .map((movieEntry) => _buildMovieDataEntity(movieEntry))
+        .get();
+  }
+
+  Future _insertMovies(List<DataEntity> movieDataEntities) {
+    return batch((batch) {
+      batch.insertAll(
+        movieEntries,
+        List<MovieDataEntity>.from(movieDataEntities).map((movieDataEntity) {
+          return MovieEntry(
+            id: movieDataEntity.id,
+            title: movieDataEntity.title,
+            plotSynopsis: movieDataEntity.plotSynopsis,
+            genreIds: _joinGenreIds(movieDataEntity.genreIds),
+            rating: movieDataEntity.rating,
+            posterUrl: movieDataEntity.posterUrl,
+            backdropUrl: movieDataEntity.backdropUrl,
+            releaseDate: movieDataEntity.releaseDate,
+            languageCode: movieDataEntity.languageCode,
+            popularity: movieDataEntity.popularity,
+          );
+        }).toList(),
+        mode: InsertMode.insertOrReplace,
+      );
     });
   }
 
-  Future storeUpcomingMovies(List<MovieModel> movieModels) {
-    return transaction(() async {
-      await _storeMovies(movieModels);
-      await _storeMovieTags(movieModels, MovieCategory.UPCOMING);
+  Future _insertMovieTags(String category, List<DataEntity> movieDataEntities) {
+    return batch((batch) {
+      batch.insertAll(
+        movieTagEntries,
+        List<MovieDataEntity>.from(movieDataEntities).map((movieDataEntity) {
+          return MovieTagEntry(
+            movieId: movieDataEntity.id,
+            name: category,
+          );
+        }).toList(),
+        mode: InsertMode.insertOrReplace,
+      );
     });
   }
 
-  Future _storeMovies(List<MovieModel> movieModels) {
-    return into(movieEntries).insertAll(
-      movieModels.map((movieModel) {
-        return MovieEntry(
-          id: movieModel.id,
-          title: movieModel.title,
-          plotSynopsis: movieModel.plotSynopsis,
-          genreIds: _joinGenreIds(movieModel.genreIds),
-          rating: movieModel.rating,
-          posterUrl: movieModel.posterUrl,
-          backdropUrl: movieModel.backdropUrl,
-          releaseDate: movieModel.releaseDate,
-          languageCode: movieModel.languageCode,
-          popularity: movieModel.popularity,
-        );
-      }).toList(),
-      orReplace: true,
-    );
-  }
-
-  Future _storeMovieTags(List<MovieModel> movieModels, String category) {
-    return into(movieTagEntries).insertAll(
-      movieModels.map((movieModel) {
-        return MovieTagEntry(
-          movieId: movieModel.id,
-          name: category,
-        );
-      }).toList(),
-      orReplace: true,
-    );
-  }
-
-  Future _storeSimilarMovies(int movieId, List<MovieModel> movieModels) {
-    return into(similarMovieEntries).insertAll(
-      movieModels.map((movieModel) {
-        return SimilarMovieEntry(
-          movieId: movieId,
-          similarMovieId: movieModel.id,
-        );
-      }).toList(),
-      orReplace: true,
-    );
+  Future _storeSimilarMovies(int movieId, List<DataEntity> movieDataEntities) {
+    return batch((batch) {
+      batch.insertAll(
+        similarMovieEntries,
+        List<MovieDataEntity>.from(movieDataEntities).map((movieDataEntity) {
+          return SimilarMovieEntry(
+            movieId: movieId,
+            similarMovieId: movieDataEntity.id,
+          );
+        }).toList(),
+        mode: InsertMode.insertOrReplace,
+      );
+    });
   }
 
   List<int> _splitGenreIds(String ids) {
@@ -177,8 +169,8 @@ class MovieDao extends DatabaseAccessor<Database> with _$MovieDaoMixin {
     return ids.join(',');
   }
 
-  MovieModel _buildMovieModel(MovieEntry movieEntry) {
-    return MovieModel(
+  DataEntity _buildMovieDataEntity(MovieEntry movieEntry) {
+    return MovieDataEntity(
       id: movieEntry.id,
       title: movieEntry.title,
       plotSynopsis: movieEntry.plotSynopsis,

@@ -1,0 +1,25 @@
+{
+  "cast": [
+    {
+      "character": "Roy McBride",
+      "id": 287,
+      "name": "Brad Pitt",
+      "order": 0,
+      "profile_path": null
+    },
+    {
+      "character": "H. Clifford McBride",
+      "id": 2176,
+      "name": "Tommy Lee Jones",
+      "order": 1,
+      "profile_path": "/xr2tuMjnXD67xx3FRaooffYmRzm.jpg"
+    },
+    {
+      "character": "Hellen Lantos",
+      "id": 17018,
+      "name": "Ruth Negga",
+      "order": 2,
+      "profile_path": "/aL4nmTVtQU2uQDNdBCarTy413CZ.jpg"
+    }
+  ]
+}

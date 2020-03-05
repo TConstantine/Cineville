@@ -1,5 +1,5 @@
+import 'package:cineville/presentation/screen/favorites_screen.dart';
 import 'package:cineville/presentation/screen/movies_screen.dart';
-import 'package:cineville/presentation/screen/tv_shows_screen.dart';
 import 'package:cineville/resources/routes.dart';
 import 'package:flutter/material.dart';
 
@@ -10,8 +10,8 @@ class CinevilleApplication extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: Routes.MOVIES,
       routes: {
-        Routes.MOVIES : (_) => MoviesScreen(),
-        Routes.TV_SHOWS : (_) => TvShowsScreen(),
+        Routes.FAVORITES: (_) => FavoritesScreen(),
+        Routes.MOVIES: (_) => MoviesScreen(),
       },
       theme: ThemeData(
         accentColor: Colors.orange.shade300,

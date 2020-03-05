@@ -1,6 +1,7 @@
 import 'package:cineville/data/database/database.dart';
 import 'package:cineville/data/database/table/actor_entries.dart';
-import 'package:cineville/data/model/actor_model.dart';
+import 'package:cineville/data/entity/actor_data_entity.dart';
+import 'package:cineville/data/entity/data_entity.dart';
 import 'package:moor_flutter/moor_flutter.dart';
 
 part 'actor_dao.g.dart';
@@ -11,11 +12,11 @@ class ActorDao extends DatabaseAccessor<Database> with _$ActorDaoMixin {
 
   ActorDao(this.database) : super(database);
 
-  Future<List<ActorModel>> getMovieActors(int movieId) {
+  Future<List<DataEntity>> getMovieActors(int movieId) {
     return (select(actorEntries)
           ..where((table) => table.movieId.equals(movieId))
           ..orderBy([(table) => OrderingTerm(expression: table.displayOrder)]))
-        .map((actorEntry) => ActorModel(
+        .map((actorEntry) => ActorDataEntity(
               id: actorEntry.id,
               name: actorEntry.name,
               profileImage: actorEntry.profileUrl,
@@ -25,16 +26,16 @@ class ActorDao extends DatabaseAccessor<Database> with _$ActorDaoMixin {
         .get();
   }
 
-  Future storeMovieActors(int movieId, List<ActorModel> actorModels) {
+  Future storeMovieActors(int movieId, List<DataEntity> actorDataEntities) {
     return into(actorEntries).insertAll(
-      actorModels.map((actorModel) {
+      List<ActorDataEntity>.from(actorDataEntities).map((actorDataEntity) {
         return ActorEntry(
           movieId: movieId,
-          id: actorModel.id,
-          name: actorModel.name,
-          profileUrl: actorModel.profileImage,
-          character: actorModel.character,
-          displayOrder: actorModel.displayOrder,
+          id: actorDataEntity.id,
+          name: actorDataEntity.name,
+          profileUrl: actorDataEntity.profileImage,
+          character: actorDataEntity.character,
+          displayOrder: actorDataEntity.displayOrder,
         );
       }).toList(),
       orReplace: true,

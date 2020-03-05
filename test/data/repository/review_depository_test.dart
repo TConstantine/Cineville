@@ -1,10 +1,12 @@
-import 'package:cineville/data/datasource/local_data_source.dart';
+import 'package:cineville/data/datasource/database_data_source.dart';
 import 'package:cineville/data/datasource/remote_data_source.dart';
+import 'package:cineville/data/entity/data_entity.dart';
+import 'package:cineville/data/entity/data_entity_type.dart';
 import 'package:cineville/data/error/exception/server_exception.dart';
-import 'package:cineville/data/error/failure/network_failure.dart';
-import 'package:cineville/data/error/failure/server_failure.dart';
-import 'package:cineville/data/mapper/review_mapper.dart';
-import 'package:cineville/data/model/review_model.dart';
+import 'package:cineville/domain/error/failure/network_failure.dart';
+import 'package:cineville/domain/error/failure/no_data_failure.dart';
+import 'package:cineville/domain/error/failure/server_failure.dart';
+import 'package:cineville/data/mapper/review_domain_entity_mapper.dart';
 import 'package:cineville/data/network/network.dart';
 import 'package:cineville/data/repository/review_depository.dart';
 import 'package:cineville/domain/entity/review.dart';
@@ -14,151 +16,107 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import '../../test_util/test_review_builder.dart';
-import '../../test_util/test_review_model_builder.dart';
+import '../../builder/data_entity_builder.dart';
+import '../../builder/domain_entity_builder.dart';
+import '../../builder/review_domain_entity_builder.dart';
+import '../../builder/review_data_entity_builder.dart';
 
 class MockRemoteDataSource extends Mock implements RemoteDataSource {}
 
-class MockLocalDataSource extends Mock implements LocalDataSource {}
+class MockDatabaseDataSource extends Mock implements DatabaseDataSource {}
 
 class MockNetwork extends Mock implements Network {}
 
-class MockMapper extends Mock implements ReviewMapper {}
+class MockReviewDomainEntityMapper extends Mock implements ReviewDomainEntityMapper {}
 
 void main() {
+  DomainEntityBuilder reviewDomainEntityBuilder;
+  DataEntityBuilder reviewDataEntityBuilder;
   RemoteDataSource mockRemoteDataSource;
-  LocalDataSource mockLocalDataSource;
+  DatabaseDataSource mockDatabaseDataSource;
   Network mockNetwork;
-  ReviewMapper mockMapper;
-  ReviewRepository repository;
+  ReviewDomainEntityMapper mockReviewDomainEntityMapper;
+  ReviewRepository reviewRepository;
 
   setUp(() {
+    reviewDomainEntityBuilder = ReviewDomainEntityBuilder();
+    reviewDataEntityBuilder = ReviewDataEntityBuilder();
     mockRemoteDataSource = MockRemoteDataSource();
-    mockLocalDataSource = MockLocalDataSource();
+    mockDatabaseDataSource = MockDatabaseDataSource();
     mockNetwork = MockNetwork();
-    mockMapper = MockMapper();
-    repository = ReviewDepository(
+    mockReviewDomainEntityMapper = MockReviewDomainEntityMapper();
+    reviewRepository = ReviewDepository(
       mockRemoteDataSource,
-      mockLocalDataSource,
+      mockDatabaseDataSource,
       mockNetwork,
-      mockMapper,
+      mockReviewDomainEntityMapper,
     );
   });
 
-  final int testMovieId = 200;
-  final List<ReviewModel> testReviewModels = TestReviewModelBuilder().buildMultiple();
-  final List<Review> testReviews = TestReviewBuilder().buildMultiple();
+  test('should return cached reviews from database data source', () async {
+    final int movieId = 1;
+    final List<DataEntity> reviewDataEntities = reviewDataEntityBuilder.buildList();
+    final List<Review> reviewDomainEntities = reviewDomainEntityBuilder.buildList();
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any))
+        .thenAnswer((_) async => reviewDataEntities);
+    when(mockReviewDomainEntityMapper.map(any)).thenReturn(reviewDomainEntities);
 
-  void _whenReviewCacheIsNotEmpty(Function body) {
-    group('when review cache is not empty', () {
-      setUp(() {
-        when(mockLocalDataSource.getMovieReviews(any)).thenAnswer((_) async => testReviewModels);
-      });
+    final Either<Failure, List<Review>> result = await reviewRepository.getMovieReviews(movieId);
 
-      body();
-    });
-  }
+    verify(mockDatabaseDataSource.getMovieDataEntities(DataEntityType.REVIEW, movieId));
+    verifyZeroInteractions(mockRemoteDataSource);
+    expect(result, equals(Right(reviewDomainEntities)));
+  });
 
-  void _whenReviewCacheIsEmpty(Function body) {
-    group('when review cache is empty', () {
-      setUp(() {
-        when(mockLocalDataSource.getMovieReviews(any)).thenAnswer((_) async => []);
-      });
+  test('should store reviews locally when they are acquired from remote data source', () async {
+    final int movieId = 1;
+    final List<DataEntity> reviewDataEntities = reviewDataEntityBuilder.buildList();
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
+    when(mockNetwork.isConnected()).thenAnswer((_) async => true);
+    when(mockRemoteDataSource.getMovieDataEntities(any, any))
+        .thenAnswer((_) async => reviewDataEntities);
 
-      body();
-    });
-  }
+    await reviewRepository.getMovieReviews(movieId);
 
-  void _whenDeviceIsOnline(Function body) {
-    group('when device is online', () {
-      setUp(() {
-        when(mockNetwork.isConnected()).thenAnswer((_) async => true);
-      });
+    verifyInOrder([
+      mockRemoteDataSource.getMovieDataEntities(DataEntityType.REVIEW, movieId),
+      mockDatabaseDataSource.storeMovieDataEntities(
+        DataEntityType.REVIEW,
+        movieId,
+        reviewDataEntities,
+      ),
+    ]);
+  });
 
-      body();
-    });
-  }
+  test('should return server failure when server throws an exception', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
+    when(mockNetwork.isConnected()).thenAnswer((_) async => true);
+    when(mockRemoteDataSource.getMovieDataEntities(any, any)).thenThrow(ServerException());
 
-  void _whenDeviceIsOffline(Function body) {
-    group('when device is offline', () {
-      setUp(() {
-        when(mockNetwork.isConnected()).thenAnswer((_) async => false);
-      });
+    final Either<Failure, List<Review>> result = await reviewRepository.getMovieReviews(movieId);
 
-      body();
-    });
-  }
+    expect(result, equals(Left(ServerFailure())));
+  });
 
-  void _whenRemoteRequestForMovieReviewsIsSuccessful(Function body) {
-    group('when remote request for movie reviews is successful', () {
-      setUp(() {
-        when(mockRemoteDataSource.getMovieReviews(any)).thenAnswer((_) async => testReviewModels);
-      });
+  test('should return network failure when device is offline', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
+    when(mockNetwork.isConnected()).thenAnswer((_) async => false);
 
-      body();
-    });
-  }
+    final Either<Failure, List<Review>> result = await reviewRepository.getMovieReviews(movieId);
 
-  void _whenRemoteRequestForMovieReviewsIsUnsuccessful(Function body) {
-    group('when remote request for movie reviews is unsuccessful', () {
-      setUp(() {
-        when(mockRemoteDataSource.getMovieReviews(any)).thenThrow(ServerException());
-      });
+    expect(result, equals(Left(NetworkFailure())));
+  });
 
-      body();
-    });
-  }
+  test('should return no data failure when server responds with no results', () async {
+    final int movieId = 1;
+    when(mockDatabaseDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
+    when(mockNetwork.isConnected()).thenAnswer((_) async => true);
+    when(mockRemoteDataSource.getMovieDataEntities(any, any)).thenAnswer((_) async => []);
 
-  group('getMovieReviews', () {
-    _whenReviewCacheIsNotEmpty(() {
-      test('should return cached reviews', () async {
-        when(mockLocalDataSource.getMovieReviews(any)).thenAnswer((_) async => testReviewModels);
-        when(mockMapper.map(any)).thenReturn(testReviews);
+    final Either<Failure, List<Review>> result = await reviewRepository.getMovieReviews(movieId);
 
-        final Either<Failure, List<Review>> result = await repository.getMovieReviews(testMovieId);
-
-        verifyZeroInteractions(mockNetwork);
-        verifyZeroInteractions(mockRemoteDataSource);
-        expect(result, equals(Right(testReviews)));
-      });
-    });
-
-    _whenReviewCacheIsEmpty(() {
-      _whenDeviceIsOnline(() {
-        _whenRemoteRequestForMovieReviewsIsSuccessful(() {
-          test('should store reviews locally', () async {
-            await repository.getMovieReviews(testMovieId);
-
-            verify(mockRemoteDataSource.getMovieReviews(testMovieId));
-            verify(mockLocalDataSource.storeMovieReviews(testMovieId, testReviewModels));
-          });
-        });
-
-        test('should not store anything when there are no reviews', () {
-          when(mockRemoteDataSource.getMovieReviews(any)).thenAnswer((_) async => []);
-
-          verifyNever(mockLocalDataSource.storeMovieReviews(any, any));
-        });
-
-        _whenRemoteRequestForMovieReviewsIsUnsuccessful(() {
-          test('should return server failure', () async {
-            final Either<Failure, List<Review>> result =
-                await repository.getMovieReviews(testMovieId);
-
-            verify(mockRemoteDataSource.getMovieReviews(testMovieId));
-            expect(result, equals(Left(ServerFailure())));
-          });
-        });
-      });
-
-      _whenDeviceIsOffline(() {
-        test('should return network failure', () async {
-          final Either<Failure, List<Review>> result =
-              await repository.getMovieReviews(testMovieId);
-
-          expect(result, equals(Left(NetworkFailure())));
-        });
-      });
-    });
+    expect(result, equals(Left(NoDataFailure())));
   });
 }

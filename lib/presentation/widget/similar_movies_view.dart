@@ -33,8 +33,8 @@ class _SimilarMoviesViewState extends State<SimilarMoviesView> {
       builder: (context, state) {
         if (state is LoadingState) {
           return _buildLoadingState();
-        } else if (state is LoadedState<Movie>) {
-          return _buildLoadedState(state.entities);
+        } else if (state is LoadedState<List<Movie>>) {
+          return _buildLoadedState(state.loadedData);
         } else if (state is ErrorState) {
           return _buildErrorState();
         } else {

@@ -1,9 +1,9 @@
 import 'package:bloc/bloc.dart';
-import 'package:cineville/data/error/failure/network_failure.dart';
-import 'package:cineville/data/error/failure/no_data_failure.dart';
-import 'package:cineville/data/error/failure/server_failure.dart';
+import 'package:cineville/domain/error/failure/network_failure.dart';
+import 'package:cineville/domain/error/failure/no_data_failure.dart';
+import 'package:cineville/domain/error/failure/server_failure.dart';
 import 'package:cineville/domain/entity/movie.dart';
-import 'package:cineville/domain/usecase/use_case.dart';
+import 'package:cineville/domain/usecase/use_case_with_params.dart';
 import 'package:cineville/presentation/bloc/bloc_state.dart';
 import 'package:cineville/presentation/bloc/event/load_popular_movies_event.dart';
 import 'package:cineville/presentation/bloc/event/load_similar_movies_event.dart';
@@ -19,22 +19,24 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import '../../test_util/test_movie_builder.dart';
+import '../../builder/domain_entity_builder.dart';
+import '../../builder/movie_domain_entity_builder.dart';
 
-class MockUseCase extends Mock implements UseCase<Movie> {}
+class MockUseCase extends Mock implements UseCaseWithParams<List<Movie>, int> {}
 
 void main() {
-  UseCase<Movie> mockUseCase;
+  DomainEntityBuilder movieDomainEntityBuilder;
+  UseCaseWithParams<List<Movie>, int> mockUseCase;
   Bloc bloc;
 
   setUp(() {
+    movieDomainEntityBuilder = MovieDomainEntityBuilder();
     mockUseCase = MockUseCase();
     bloc = MoviesBloc(mockUseCase, mockUseCase, mockUseCase, mockUseCase);
   });
 
   final int testPage = 1;
   final int testMovieId = 100;
-  final List<Movie> testMovies = TestMovieBuilder().buildMultiple();
 
   test('initial state should be Empty', () {
     expect(bloc.initialState, equals(EmptyState()));
@@ -42,6 +44,7 @@ void main() {
 
   group('when data is loaded successfully', () {
     setUp(() {
+      final List<Movie> testMovies = movieDomainEntityBuilder.buildList();
       when(mockUseCase.execute(any)).thenAnswer((_) async => Right(testMovies));
     });
 
@@ -74,10 +77,11 @@ void main() {
     });
 
     test('should emit [Loading, Loaded] states', () async {
+      final List<Movie> testMovies = movieDomainEntityBuilder.buildList();
       final List<BlocState> emittedStates = [
         EmptyState(),
         LoadingState(),
-        LoadedState<Movie>(testMovies),
+        LoadedState<List<Movie>>(testMovies),
       ];
       expectLater(bloc.state, emitsInOrder(emittedStates));
 

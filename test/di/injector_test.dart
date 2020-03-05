@@ -4,35 +4,43 @@ import 'package:cineville/data/database/dao/movie_dao.dart';
 import 'package:cineville/data/database/dao/review_dao.dart';
 import 'package:cineville/data/database/dao/video_dao.dart';
 import 'package:cineville/data/database/database.dart';
-import 'package:cineville/data/datasource/local_data_source.dart';
-import 'package:cineville/data/datasource/local_date_source.dart';
-import 'package:cineville/data/datasource/local_preferences.dart';
-import 'package:cineville/data/datasource/moor_database.dart';
+import 'package:cineville/data/datasource/database_data_source.dart';
+import 'package:cineville/data/datasource/preferences_data_source.dart';
+import 'package:cineville/data/datasource/shared_preferences_data_source.dart';
+import 'package:cineville/data/datasource/moor_database_data_source.dart';
 import 'package:cineville/data/datasource/remote_data_source.dart';
-import 'package:cineville/data/datasource/tmdb_api.dart';
-import 'package:cineville/data/mapper/actor_mapper.dart';
-import 'package:cineville/data/mapper/movie_mapper.dart';
-import 'package:cineville/data/mapper/review_mapper.dart';
-import 'package:cineville/data/mapper/video_mapper.dart';
+import 'package:cineville/data/datasource/tmdb_remote_data_source.dart';
+import 'package:cineville/data/mapper/actor_domain_entity_mapper.dart';
+import 'package:cineville/data/mapper/movie_domain_entity_mapper.dart';
+import 'package:cineville/data/mapper/review_domain_entity_mapper.dart';
+import 'package:cineville/data/mapper/video_domain_entity_mapper.dart';
 import 'package:cineville/data/network/network.dart';
 import 'package:cineville/data/network/wireless_network.dart';
 import 'package:cineville/data/repository/actor_depository.dart';
+import 'package:cineville/data/repository/favorite_depository.dart';
 import 'package:cineville/data/repository/movie_depository.dart';
 import 'package:cineville/data/repository/review_depository.dart';
 import 'package:cineville/data/repository/video_depository.dart';
 import 'package:cineville/di/injector.dart';
 import 'package:cineville/domain/repository/actor_repository.dart';
+import 'package:cineville/domain/repository/favorite_repository.dart';
 import 'package:cineville/domain/repository/movie_repository.dart';
 import 'package:cineville/domain/repository/review_repository.dart';
 import 'package:cineville/domain/repository/video_repository.dart';
-import 'package:cineville/domain/usecase/get_movie_actors.dart';
-import 'package:cineville/domain/usecase/get_movie_reviews.dart';
-import 'package:cineville/domain/usecase/get_movie_videos.dart';
-import 'package:cineville/domain/usecase/get_popular_movies.dart';
-import 'package:cineville/domain/usecase/get_similar_movies.dart';
-import 'package:cineville/domain/usecase/get_top_rated_movies.dart';
-import 'package:cineville/domain/usecase/get_upcoming_movies.dart';
+import 'package:cineville/domain/usecase/mark_movie_as_favorite_use_case.dart';
+import 'package:cineville/domain/usecase/get_favorite_movies_use_case.dart';
+import 'package:cineville/domain/usecase/get_movie_actors_use_case.dart';
+import 'package:cineville/domain/usecase/get_movie_reviews_use_case.dart';
+import 'package:cineville/domain/usecase/get_movie_videos_use_case.dart';
+import 'package:cineville/domain/usecase/get_popular_movies_use_case.dart';
+import 'package:cineville/domain/usecase/get_similar_movies_use_case.dart';
+import 'package:cineville/domain/usecase/get_top_rated_movies_use_case.dart';
+import 'package:cineville/domain/usecase/get_upcoming_movies_use_case.dart';
+import 'package:cineville/domain/usecase/is_movie_marked_as_favorite_use_case.dart';
+import 'package:cineville/domain/usecase/remove_movie_from_favorites_use_case.dart';
 import 'package:cineville/presentation/bloc/actors_bloc.dart';
+import 'package:cineville/presentation/bloc/favorite_list_bloc.dart';
+import 'package:cineville/presentation/bloc/favorite_movie_bloc.dart';
 import 'package:cineville/presentation/bloc/movies_bloc.dart';
 import 'package:cineville/presentation/bloc/reviews_bloc.dart';
 import 'package:cineville/presentation/bloc/videos_bloc.dart';
@@ -79,45 +87,84 @@ void main() {
     expect(bloc, isNotNull);
   });
 
+  test('should register FavoriteMovieBloc', () {
+    final FavoriteMovieBloc bloc = injector<FavoriteMovieBloc>();
+
+    expect(bloc, isNotNull);
+  });
+
+  test('should register FavoriteListBloc', () {
+    final FavoriteListBloc bloc = injector<FavoriteListBloc>();
+
+    expect(bloc, isNotNull);
+  });
+
   test('should register get popular movies use case', () {
-    final GetPopularMovies useCase = injector(UseCaseKey.GET_POPULAR_MOVIES) as GetPopularMovies;
+    final GetPopularMoviesUseCase useCase = injector(UseCaseKey.GET_POPULAR_MOVIES) as GetPopularMoviesUseCase;
 
     expect(useCase, isNotNull);
   });
 
   test('should register get top rated movies use case', () {
-    final GetTopRatedMovies useCase =
-        injector(UseCaseKey.GET_TOP_RATED_MOVIES) as GetTopRatedMovies;
+    final GetTopRatedMoviesUseCase useCase =
+        injector(UseCaseKey.GET_TOP_RATED_MOVIES) as GetTopRatedMoviesUseCase;
 
     expect(useCase, isNotNull);
   });
 
   test('should register get upcoming movies use case', () {
-    final GetUpcomingMovies useCase = injector(UseCaseKey.GET_UPCOMING_MOVIES) as GetUpcomingMovies;
+    final GetUpcomingMoviesUseCase useCase = injector(UseCaseKey.GET_UPCOMING_MOVIES) as GetUpcomingMoviesUseCase;
 
     expect(useCase, isNotNull);
   });
 
   test('should register get movie actors use case', () {
-    final GetMovieActors useCase = injector(UseCaseKey.GET_MOVIE_ACTORS) as GetMovieActors;
+    final GetMovieActorsUseCase useCase = injector(UseCaseKey.GET_MOVIE_ACTORS) as GetMovieActorsUseCase;
 
     expect(useCase, isNotNull);
   });
 
   test('should register get movie reviews use case', () {
-    final GetMovieReviews useCase = injector(UseCaseKey.GET_MOVIE_REVIEWS) as GetMovieReviews;
+    final GetMovieReviewsUseCase useCase = injector(UseCaseKey.GET_MOVIE_REVIEWS) as GetMovieReviewsUseCase;
 
     expect(useCase, isNotNull);
   });
 
   test('should register get similar movies use case', () {
-    final GetSimilarMovies useCase = injector(UseCaseKey.GET_SIMILAR_MOVIES) as GetSimilarMovies;
+    final GetSimilarMoviesUseCase useCase = injector(UseCaseKey.GET_SIMILAR_MOVIES) as GetSimilarMoviesUseCase;
 
     expect(useCase, isNotNull);
   });
 
   test('should register get movie videos use case', () {
-    final GetMovieVideos useCase = injector(UseCaseKey.GET_MOVIE_VIDEOS) as GetMovieVideos;
+    final GetMovieVideosUseCase useCase = injector(UseCaseKey.GET_MOVIE_VIDEOS) as GetMovieVideosUseCase;
+
+    expect(useCase, isNotNull);
+  });
+
+  test('should register get favorite movies use case', () {
+    final GetFavoriteMoviesUseCase useCase = injector(UseCaseKey.GET_FAVORITE_MOVIES) as GetFavoriteMoviesUseCase;
+
+    expect(useCase, isNotNull);
+  });
+
+  test('should register IsFavoriteMovieUseCase', () {
+    final IsMovieMarkedAsFavoriteUseCase useCase =
+        injector(UseCaseKey.IS_FAVORITE_MOVIE) as IsMovieMarkedAsFavoriteUseCase;
+
+    expect(useCase, isNotNull);
+  });
+
+  test('should register add movie to favorite list use case', () {
+    final MarkMovieAsFavoriteUseCase useCase =
+        injector(UseCaseKey.ADD_MOVIE_TO_FAVORITE_LIST) as MarkMovieAsFavoriteUseCase;
+
+    expect(useCase, isNotNull);
+  });
+
+  test('should register remove movie from favorite list use case', () {
+    final RemoveMovieFromFavoritesUseCase useCase =
+        injector(UseCaseKey.REMOVE_MOVIE_FROM_FAVORITE_LIST) as RemoveMovieFromFavoritesUseCase;
 
     expect(useCase, isNotNull);
   });
@@ -146,20 +193,26 @@ void main() {
     expect(depository, isNotNull);
   });
 
+  test('should register favorite depository', () {
+    final FavoriteDepository depository = injector<FavoriteRepository>();
+
+    expect(depository, isNotNull);
+  });
+
   test('should register tmdb api', () {
-    final TmdbApi tmdbApi = injector<RemoteDataSource>();
+    final TmdbRemoteDataSource tmdbApi = injector<RemoteDataSource>();
 
     expect(tmdbApi, isNotNull);
   });
 
   test('should register moor database', () {
-    final MoorDatabase moorDatabase = injector<LocalDataSource>();
+    final MoorDatabaseDataSource moorDatabase = injector<DatabaseDataSource>();
 
     expect(moorDatabase, isNotNull);
   });
 
   test('should register local preferences', () {
-    final LocalPreferences localPreferences = injector<LocalDateSource>();
+    final SharedPreferencesDataSource localPreferences = injector<PreferencesDataSource>();
 
     expect(localPreferences, isNotNull);
   });
@@ -171,25 +224,25 @@ void main() {
   });
 
   test('should register movie mapper', () {
-    final MovieMapper mapper = injector<MovieMapper>();
+    final MovieDomainEntityMapper mapper = injector<MovieDomainEntityMapper>();
 
     expect(mapper, isNotNull);
   });
 
   test('should register actor mapper', () {
-    final ActorMapper mapper = injector<ActorMapper>();
+    final ActorDomainEntityMapper mapper = injector<ActorDomainEntityMapper>();
 
     expect(mapper, isNotNull);
   });
 
   test('should register review mapper', () {
-    final ReviewMapper mapper = injector<ReviewMapper>();
+    final ReviewDomainEntityMapper mapper = injector<ReviewDomainEntityMapper>();
 
     expect(mapper, isNotNull);
   });
 
   test('should register video mapper', () {
-    final VideoMapper mapper = injector<VideoMapper>();
+    final VideoDomainEntityMapper mapper = injector<VideoDomainEntityMapper>();
 
     expect(mapper, isNotNull);
   });

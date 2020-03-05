@@ -1,10 +1,10 @@
 import 'package:bloc/bloc.dart';
-import 'package:cineville/data/error/failure/network_failure.dart';
-import 'package:cineville/data/error/failure/no_data_failure.dart';
-import 'package:cineville/data/error/failure/server_failure.dart';
+import 'package:cineville/domain/error/failure/network_failure.dart';
+import 'package:cineville/domain/error/failure/no_data_failure.dart';
+import 'package:cineville/domain/error/failure/server_failure.dart';
 import 'package:cineville/domain/entity/movie.dart';
 import 'package:cineville/domain/error/failure/failure.dart';
-import 'package:cineville/domain/usecase/use_case.dart';
+import 'package:cineville/domain/usecase/use_case_with_params.dart';
 import 'package:cineville/presentation/bloc/bloc_event.dart';
 import 'package:cineville/presentation/bloc/bloc_state.dart';
 import 'package:cineville/presentation/bloc/event/load_popular_movies_event.dart';
@@ -19,10 +19,10 @@ import 'package:cineville/resources/translatable_strings.dart';
 import 'package:dartz/dartz.dart';
 
 class MoviesBloc extends Bloc<BlocEvent, BlocState> {
-  final UseCase<Movie> getPopularMovies;
-  final UseCase<Movie> getUpcomingMovies;
-  final UseCase<Movie> getTopRatedMovies;
-  final UseCase<Movie> getSimilarMovies;
+  final UseCaseWithParams<List<Movie>, int> getPopularMovies;
+  final UseCaseWithParams<List<Movie>, int> getUpcomingMovies;
+  final UseCaseWithParams<List<Movie>, int> getTopRatedMovies;
+  final UseCaseWithParams<List<Movie>, int> getSimilarMovies;
 
   MoviesBloc(
     this.getPopularMovies,
@@ -49,7 +49,7 @@ class MoviesBloc extends Bloc<BlocEvent, BlocState> {
     }
     yield useCaseResult.fold(
       (failure) => ErrorState(_mapFailureToMessage(failure)),
-      (entities) => LoadedState<Movie>(entities),
+      (entities) => LoadedState<List<Movie>>(entities),
     );
   }
 
